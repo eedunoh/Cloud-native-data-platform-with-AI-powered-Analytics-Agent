@@ -23,7 +23,7 @@ class Config:
 
 
     # Streaming data set
-    streaming_data_set = "https://raw.githubusercontent.com/eedunoh/Cloud-native-data-platform-with-AI-powered-Analytics/main/Sales.csv"
+    streaming_data_set = "https://raw.githubusercontent.com/eedunoh/Cloud-native-data-platform-with-AI-powered-Analytics-Agent/main/Sales.csv"
 
 
     # Get bucket names from SSM store
