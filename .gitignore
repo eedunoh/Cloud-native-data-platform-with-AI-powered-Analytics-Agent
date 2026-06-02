@@ -12,3 +12,4 @@ ingestion/documents/policy_documents/
 *.tfstate
 *.tfstate.*
 *.terraform*
+*.pem

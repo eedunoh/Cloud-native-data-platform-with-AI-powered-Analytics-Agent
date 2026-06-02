@@ -5,15 +5,11 @@ import json
 import os
 import glob
 from datetime import datetime
-from dotenv import load_dotenv
 from config import Config
 import boto3
 import logging
 
 logger = logging.getLogger(__name__)
-
-# Initialize the .env file so we can load the variables contained in it 
-load_dotenv()
 
 
 # Initialize claude client so we can use claude's ai for reasoning via the API

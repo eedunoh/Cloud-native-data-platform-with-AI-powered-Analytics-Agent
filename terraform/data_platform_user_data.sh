@@ -1,8 +1,12 @@
 #!/bin/bash
 
-# Install confluent-kafka, requests and anthropic. Confluent-kafka is a Python client library that will establish communication between our python script and Kafka broker
+# Install confluent-kafka, requests and anthropic. These libraries are required for this project. 
+# Confluent-kafka is a Python client library that will establish communication between our python script and Kafka broker
+# requests will enable sending requests/talk to the internet
+# anthropic enables connection to Anthropic (claude.ai)
+# boto3 is a python library that enables python communicate with AWS services
 sudo yum install -y python3-pip
-pip3 install confluent-kafka requests anthropic
+pip3 install confluent-kafka requests anthropic boto3
 
 
 # Install Docker 
@@ -23,11 +27,11 @@ docker --version
 
 
 # Install Docker Compose:
+sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
 
-sudo yum install -y docker-compose-plugin
 
-
-# Install libxcrypt-compat (required for some Python packages on Amazon Linux 2023)
+# Install libxcrypt-compat (Amazon Linux requirement)
 sudo yum install -y libxcrypt-compat
 
 docker-compose --version
@@ -54,4 +58,4 @@ sleep 10
 
 
 # Start Kafka and Kafka UI containers
-docker compose up -d
+docker-compose up -d

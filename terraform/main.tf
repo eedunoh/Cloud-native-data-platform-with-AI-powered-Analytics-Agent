@@ -90,6 +90,14 @@ resource "aws_security_group" "data_platform_sg" {
 
   ingress {
     description = "data_platform server ingress"
+    from_port   = 8090
+    to_port     = 8090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # we can modify this rule to allow traffic from ONLY authorized IP addresses to achieve stricter security.
+  }
+
+  ingress {
+    description = "data_platform server ingress"
     from_port   = 9092
     to_port     = 9092
     protocol    = "tcp"
