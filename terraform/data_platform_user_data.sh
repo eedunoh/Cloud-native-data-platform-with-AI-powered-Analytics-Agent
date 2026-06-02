@@ -42,7 +42,7 @@ git --version
 
 # Clone the repo and start docker-compose
 cd /home/ec2-user
-git clone https://github.com/eedunoh/Cloud-native-data-platform-with-AI-powered-Analytics.git
+git clone https://github.com/eedunoh/Cloud-native-data-platform-with-AI-powered-Analytics-Agent.git
 
 
 # Navigate into your Docker Compose files
