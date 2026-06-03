@@ -8,6 +8,25 @@ import csv
 import io
 from datetime import datetime
 from config import Config
+import sys
+import os
+
+
+
+# When running a script directly (e.g python3 producer.py), Python only looks for modules in the script's own folder.
+# This means 'from config import Config' fails because config.py is in the project root, not in ingestion/streaming/.
+# The line below solves this by adding the project root folder to Python's search path at runtime.
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# os.path.abspath(__file__) gets the full path of this script.
+# Two os.path.dirname() calls navigate up two levels to the project root.
+# sys.path.append() adds that root folder to Python's module search path.
+# After this, Python can find config.py regardless of which subfolder this script lives in.
+
+# AN ALTERNATIVE TO THE ABOVE IS TO MAKE PYTHON TREAT THE FOLDERS AS PACKAGES BY ADDING "__init__.py" FILES TO EACH DIRECTORY/SUB-DIRECTORY CONTAINING THE CONFIG AND PYTHON SCRIPTS
+
+
 
 
 # Definig a variable to store streaming data source
