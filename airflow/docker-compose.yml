@@ -89,15 +89,14 @@ services:
       # Airflow scans /opt/airflow/dags for DAG files automatically
       - ./dags:/opt/airflow/dags
 
-      # Mount logs folder so task logs are written to EC2 disk
-      # Without this, logs disappear when the container restarts
-      - ./logs:/opt/airflow/logs
-
       # Mount your ingestion scripts into the container
       # DAG tasks need to import and run these scripts
       # ../ingestion means go up one level from airflow/ to the project root, then into ingestion/
       # Inside the container they appear at /opt/airflow/ingestion
       - ../ingestion:/opt/airflow/ingestion
+
+      # Named Volumes- logs folder so task logs are written to EC2 disk
+      - airflow_logs:/opt/airflow/logs
 
     # Expose Airflow UI on port 8085
     # Access it at http://EC2-PUBLIC-IP:8085 in your browser
@@ -131,8 +130,8 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     volumes:
       - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
       - ../ingestion:/opt/airflow/ingestion
+      - airflow_logs:/opt/airflow/logs
 
     # Start the Airflow scheduler process
     command: scheduler
@@ -144,3 +143,4 @@ volumes:
   # Data persists even when containers are stopped or recreated
   # Same concept as kafka_data volume in the Kafka docker-compose
   postgres_data:
+  airflow_logs:
