@@ -5,7 +5,6 @@ import os
 from datetime import datetime
 from confluent_kafka.admin import AdminClient, NewTopic
 import time
-from ingestion.config import Config
 import boto3
 import logging
 import sys
@@ -23,6 +22,8 @@ import os
 # After this, Python can find ingestion.config regardless of which subfolder this script lives in.
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from ingestion.config import Config
 
 
 

@@ -7,7 +7,6 @@ import requests
 import csv
 import io
 from datetime import datetime
-from ingestion.config import Config
 import sys
 import os
 
@@ -23,6 +22,8 @@ import os
 # After this, Python can find ingestion.config regardless of which subfolder this script lives in.
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from ingestion.config import Config
 
 
 
