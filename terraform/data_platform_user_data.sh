@@ -50,7 +50,7 @@ git clone https://github.com/eedunoh/Cloud-native-data-platform-with-AI-powered-
 
 
 # Navigate into your Kafka Docker Compose folder
-cd /home/ec2-user/Cloud-native-data-platform-with-AI-powered-Analytics/kafka_docker
+cd /home/ec2-user/Cloud-native-data-platform-with-AI-powered-Analytics-Agent/kafka_docker
 
 
 # Sleep to ensure Docker daemon is ready (optional)

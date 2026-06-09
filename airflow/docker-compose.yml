@@ -63,15 +63,9 @@ services:
     # Two commands run sequentially when this container starts:
     # 1. airflow db init — creates all database tables Airflow needs
     # 2. airflow users create — creates your admin account for the Airflow UI
+    # Note: The bash command below may fail if not properly formated. E.g writing the bash command on multiple lines could cause an error
     command: >
-      bash -c "airflow db init &&
-               airflow users create
-               --username admin
-               --password admin
-               --firstname Admin
-               --lastname User
-               --role Admin
-               --email admin@example.com"
+      bash -c "airflow db init && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com"
 
 
   # Airflow webserver — the browser UI
@@ -105,10 +99,10 @@ services:
       # Inside the container they appear at /opt/airflow/ingestion
       - ../ingestion:/opt/airflow/ingestion
 
-    # Expose Airflow UI on port 8080
-    # Access it at http://EC2-PUBLIC-IP:8080 in your browser
+    # Expose Airflow UI on port 8085
+    # Access it at http://EC2-PUBLIC-IP:8085 in your browser
     ports:
-      - "8080:8080"
+      - "8085:8080"
 
     # Start the Airflow webserver process
     command: webserver
