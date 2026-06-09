@@ -1,0 +1,2 @@
+From apache/airflow:2.8.0
+RUN pip --user install --no-cache-dir confluent-kafka requests anthropic boto3

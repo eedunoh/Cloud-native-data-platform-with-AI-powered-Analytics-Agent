@@ -74,7 +74,7 @@ def fetch_dataset (url: str) -> list[dict]:
 
 # Next, stream dataset one row after the other. We will delay next row by 0.5 seconds. 
 # This means we will stream two rows within a second
-def stream_dataset(records: list[dict], delay: float = 1.0):
+def stream_dataset(records: list[dict], delay: float = 2.0):
     total = len(records)
 
     print(f"starting to stream {total} records")

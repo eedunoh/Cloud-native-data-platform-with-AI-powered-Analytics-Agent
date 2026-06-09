@@ -69,8 +69,10 @@ sleep 20
 cd /home/ec2-user/Cloud-native-data-platform-with-AI-powered-Analytics-Agent/airflow
 
 
-# Start Airflow Containers
-docker-compose up -d
+# Start Airflow Containers. 
+# Note, I add "--build" because I created a dockerfile to store some important libraries like confluent-kafka, requests, anthropic and boto3
+# I installed them initially at the start of this script but noticed they were only installed on ec2 and not inside airflow container. Airflow needs these libraries installed in the container.
+docker-compose up -d --build
 
 
 

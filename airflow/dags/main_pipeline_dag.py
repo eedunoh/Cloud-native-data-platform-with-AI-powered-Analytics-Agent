@@ -43,7 +43,7 @@ default_args = {
 with DAG(
     dag_id='main_pipeline_dag',
     default_args=default_args,
-    description='Main dataplatform airflow pipeline',
+    description='Main_dataplatform_airflow_pipeline',
     schedule_interval=timedelta(minutes=15),
     catchup=False,
     tags=['data_platform']
@@ -59,14 +59,14 @@ with DAG(
 
     # Task: Call run() from the batch_ingestor.py script. PythonOperator executes a python function in an airflow Task
     batch_ingestion = PythonOperator(
-        task_id='Process batch data'
+        task_id='Process_batch_data',
         python_callable=run_batch
     )
 
 
     # Task: Call run() from the doc_extractor.py script
     document_extraction = PythonOperator(
-        task_id='Extract_documents using Claude AI'
+        task_id='Extract_documents_using_Claude_AI',
         python_callable=run_doc_extractor
     )
 

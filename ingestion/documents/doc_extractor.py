@@ -9,6 +9,7 @@ import boto3
 import logging
 import sys
 import os
+from airflow.models import Variable
 
 
 
@@ -23,18 +24,27 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+
+# Import Config from the config.py. 
+# This is positioned here because we need to set the project root before importing config.py module
 from ingestion.config import Config
 
 
-
+# Define logger
 logger = logging.getLogger(__name__)
+
+
+# Define where to get anthropic API key
+API_KEY = Variable.get("ANTHROPIC_API_KEY")
 
 
 # Initialize claude client so we can use claude's ai for reasoning via the API
 client = anthropic.Anthropic(
-    api_key=os.getenv("ANTHROPIC_API_KEY")
+    api_key=API_KEY
 )
 
+
+# Define Source, Destination buckets and Initialize s3 Client
 source_bucket = Config.policy_document_bucket
 
 destination_bucket= Config.document_extract_bucket
@@ -141,7 +151,7 @@ def save_extracted_data(extracted: dict, destination_bucket: str, key: str):
     file_name_with_ext = os.path.basename(key) 
 
     # Seperating base_name from the extension
-    base_name = file_name_with_ext.stem    # Result: "document1"
+    base_name, ext = os.path.splitext(file_name_with_ext)    # Result: "document1"
     
     Key = f"{base_name}_{timestamp}.json"
 
@@ -166,20 +176,8 @@ def save_extracted_data(extracted: dict, destination_bucket: str, key: str):
 # So far, we have defined functions to handle path reading, policy extraction and to save extracted policy in json format into the out folder.
 # Now we will bring them together
 
-def run(source_bucket:str, destination_bucket: str, key: str):
-    print(f"Starting document extraction for: {key}")
+def run():
 
-    extracted = extract_policy(source_bucket, key)
-
-    filename = save_extracted_data(extracted, destination_bucket, key)
-    
-    logger.info(f"Document extraction complete and saved. Output: {filename}")
-    print(f"Document extraction complete and saved. Output: {filename}")
-
-
-
-if __name__ == "__main__":
-    
     # This will produce a dictionary containing the metadata of the pdfs in the source bucket
     source_dict = s3_client.list_objects_v2(Bucket=source_bucket)
 
@@ -220,14 +218,8 @@ if __name__ == "__main__":
             # Seperating base_name from the extension
             base_name, ext = os.path.splitext(file_name_with_ext)
 
-            # OR (alternative to splitext)
-            # from pathlib import Path
-            # base_name = Path(os.path.basename(key)).stem  # "document1"
-            # ext = Path(os.path.basename(key)).suffix  # ".pdf"
-
             if base_name not in processed_pdfs:
                 unprocessed_pdfs.add(key)
-
 
     print(f"Found {len(unprocessed_pdfs)} new unprocessed files.\n")
 
@@ -235,7 +227,28 @@ if __name__ == "__main__":
         print("No new PDFs to process. All documents are up to date.")
     else:
         for key in unprocessed_pdfs:
-            run(source_bucket, destination_bucket, key)
+            print(f"Starting document extraction for: {key}")
+
+            extracted = extract_policy(source_bucket, key)
+
+            filename = save_extracted_data(extracted, destination_bucket, key)
+            
+            logger.info(f"Document extraction complete and saved. Output: {filename}")
+            print(f"Document extraction complete and saved. Output: {filename}")
+
             print()
         print("All new PDF documents processed.")
 
+
+if __name__ == "__main__":
+    run()
+
+
+# Note - 'Defining' a function is different from 'Calling' a function
+# 'Defining' just states what the function does, but 'Calling' it EXECUTES the function
+
+# __name__ = "__main__"  means "Only Call run() if this file is being executed directly on the host. Don't execute it at the 'import' stage if there is NO explicit run() command" 
+
+# This is critical because when Airflow orchestrates this script, it will import the script as a module and later in the DAG Call specific functions as Tasks.
+# Without this guard [ __name__ = "__main__" ], if we only have run() command right after defining the run() function, importing the file in airflow DAG would immediately trigger the run() command at the 'import' stage
+# It will execute this whole ingestion script and won't even wait for the DAG to fully reach the Task stage where we intend to execute run() -  Thats not what we want.

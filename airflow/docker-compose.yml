@@ -35,7 +35,9 @@ services:
   # After it completes successfully it exits — it does not stay running
   # The webserver and scheduler then take over
   airflow-init:
-    image: apache/airflow:2.8.0
+    build:
+      context: .
+      dockerfile: dockerfile   # Dockerfile <> dockerfile
     container_name: airflow_init
     # Do not start until Postgres is healthy and accepting connections
     depends_on:
@@ -73,7 +75,9 @@ services:
   # You use it to monitor DAGs, trigger runs manually, check task logs
   # and manage connections, variables and secrets
   airflow-webserver:
-    image: apache/airflow:2.8.0
+    build:
+      context: .
+      dockerfile: dockerfile   # Dockerfile <> dockerfile
     container_name: airflow_webserver
     # Do not start until Postgres is healthy
     depends_on:
@@ -117,7 +121,9 @@ services:
   # It checks your DAGs every few seconds and triggers tasks when they are due
   # Without the scheduler, your DAGs never run automatically
   airflow-scheduler:
-    image: apache/airflow:2.8.0
+    build:
+      context: .
+      dockerfile: dockerfile   # Dockerfile <> dockerfile
     container_name: airflow_scheduler
     # Do not start until Postgres is healthy
     depends_on:
