@@ -8,7 +8,9 @@ import time
 import boto3
 import logging
 import sys
-import os
+import pyarrow as pa
+import pyarrow.parquet as pq
+import io
 
 
 
@@ -104,31 +106,106 @@ print("")
 print("Consumer started. Waiting for messages... \n")
 
 
-# Now, we extract the raw data from kafka and load into the storage directory
+
+# We will send data in parquets format instead of JSON. This is a better approach compared to sending individual events in json format because it saves cost per read on s3 and ensures we have a good enough data before we move them to s3.
+
+# Accumulate events for 5 minutes (300 seconds) before saving streamed json events into the event_buffer
+buffer_window = 300
+
+# Define an empty list to store buffered events. 
+# Using a set might seem appealing because sets are fast for membership checks. But for a streaming event buffer, a list is the correct choice because; 
+# Sets are unorderd but lists are. We need that orderliness here since we are interested on when events happen
+# Sets do not allow duplicates. While this may look good but it could delete/reject a legimate row that appear as a duplicate. We would rather resolve duplicates in the data cleaning stage.
+event_buffer = []
+
+window_start = time.time()
+
+
+# Now, we extract the raw data from kafka and append to buffer
+def write_parquet_to_s3(event_buffer: list[dict]):
+        # Convert the event_buffer from a list[dict] format to a pyarrow table (parquet)
+        table = pa.Table.from_pydict({
+
+            # This is a list comprehension
+            # First line sets the key (extracted from the second line). For values, it iterates through each record to get values of the same key then stores them in a list
+            # Second line basically extract the Keys of the first record and that will be the key used in the first line. keys here can also be referred to as the columns.
+
+            key:[e.get(key) for e in event_buffer]
+            for key in event_buffer[0].keys()
+
+        })
+
+        # Next, store the pyarrow table in a in-memory parquet file waiting to be written into S3
+        # These three lines are necessary because you need to create a file in memory, write the Parquet data into it, and then prepare it for uploading – all without touching the disk.
+        # The RAM_buffer is just the assembly area, not really a second write.
+        # An empty virtual file in RAM
+        RAM_buffer = io.BytesIO()
+
+        # Serialise the pyarrow table into Parquet bytes
+        pq.write_table(table, RAM_buffer)
+
+        # Reset the file pointer to the begining
+        RAM_buffer.seek(0)
+
+
+
+        # Its important to store each parquet with a file name and add a differentiator in the filenames.
+        # One diferentiator mostly used is the 'datetime' parameter because no two messages from the same consumer will arrive at the same time.
+        # We convert the datetime object into a specific text format using strftime
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+
+        Key = f"sales_event_{timestamp}.parquet"
+
+        # This will upload the raw data into S3
+        try:
+            s3_client.put_object(
+                Bucket=s3_streaming_bucket,
+                Key=Key,
+                Body=RAM_buffer.getvalue(),
+                ContentType='application/octet-stream'
+            )
+            logger.info(f"Successfully saved {len(event_buffer)} records to {s3_streaming_bucket}/{Key}")
+            print(f"Saved events to {s3_streaming_bucket}/{Key}\n")
+
+        except Exception as e:
+            logger.exception(f"Error uploading file {Key} to S3")
+
 
 try:
     while True:
-        # We wait for 2 seconds for a message before we attempt to extract the data
+        
+        # It tells the Kafka client to wait up to 2 seconds for new data, but it returns as soon as it has something (a single message or a micro‑batch of messages, depending on the consumer’s fetch settings).
         # poll is used to extract
         msg = consumer.poll(2.0)
 
 
-        # If there are no messages
+        # If there are no messages, This means messages are not coming in. Check if the event_buffer IS NOT NULL and buffer_window has elapsed
         if msg is None:
+            if event_buffer and (time.time() - window_start >= buffer_window):
+
+                #convert event_buffer to parquet and save to s3
+                write_parquet_to_s3(event_buffer)
+
+                # Reset event_buffer back as empty list and get it ready for next operation
+                event_buffer = []
+
+                window_start = time.time()
             continue
         
 
-        # If there is an error
+        # If there is an error. This means messages are coming in but there is an error. 
+        # It will return to begining of the loop
         if msg.error():
             print(f"Error: {msg.error()}")
             continue
 
 
-        # Check message has content first
+        # Check message has content first. This means messages are coming in but no content. 
+        # It will return to begining of the loop
         if msg.value() is None:
             continue
 
-        # If there is a message containing valid data, python decodes the message and loads/stores it in the event variable
+        # If there is a message containing valid data, python decodes the message/event and stores it in the event_buffer
         records = json.loads(msg.value().decode('utf-8'))
 
         # PS:
@@ -136,37 +213,27 @@ try:
             # .decode('utf-8') → string: '{"symbol": "AAPL", "price": 150.23}'
             # json.loads() → Python dictionary: {"symbol": "AAPL", "price": 150.23}
         
+        event_buffer.append(records)
         
-        # records is a dict as explained above, we need to convert to JSON string, so S3 can accept it. 
-        # JSON is always a string and a Python dictionary is a Python object. S3 put_object Body requires bytes or string, not a Python dictionary.
-        json_data = json.dumps(records)
+        # Check if the buffer window has elapsed
+        if time.time() - window_start >= buffer_window:
 
+            # if event_buffer IS NOT NULL
+            if event_buffer:
 
-        # While storing, it's critical to store each message with a file name and add a differentiator in the filenames.
-        # One diferentiator mostly used is the 'datetime' parameter because no two messages from the same consumer will arrive at the same time.
-        # We convert the datetime object into a specific text format using strftime
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')
+                #convert event_buffer to parquet and save to s3
+                write_parquet_to_s3(event_buffer)
 
-        Key = f"event_{timestamp}.json"
+                # Reset event_buffer back as empty list and get it ready for next operation
+                event_buffer = []
 
-        # This will upload the raw data into S3
-        try:
-            s3_client.put_object(
-                Bucket=s3_streaming_bucket,
-                Key=Key,
-                Body=json_data,
-                ContentType='application/json'
-            )
-            logger.info(f"Successfully saved {len(records)} records to {s3_streaming_bucket}/{Key}")
-            print(f"Saved events to {s3_streaming_bucket}/{Key}\n")
+            window_start = time.time()
 
-        except Exception as e:
-            logger.exception(f"Error uploading file {Key} to S3")
-        
-
-except KeyboardInterrupt:
-    print("Consumer Stopped")
-
+except Exception as e:
+    logger.exception(f"Operation failed at the parquet stage")
 
 finally:
+    # flush remaining events on shutdown
+    if event_buffer:                 
+        write_parquet_to_s3(event_buffer)
     consumer.close()

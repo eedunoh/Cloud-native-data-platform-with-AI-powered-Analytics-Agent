@@ -1,5 +1,6 @@
+# Data_platform server (ec2) IAM Role
 resource "aws_iam_role" "data_platform_server_role" {
-  name = var.iam_role_name
+  name = var.server_iam_role_name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -13,8 +14,9 @@ resource "aws_iam_role" "data_platform_server_role" {
   })
 }
 
+# Data_platform server (ec2) IAM Policies
 resource "aws_iam_policy" "data_platform_iam_policy" {
-  name        = var.iam_policy_name
+  name        = var.server_iam_policy_name
   description = "Data platform iam policy"
   policy = jsonencode({
     Version = "2012-10-17"
@@ -72,7 +74,76 @@ resource "aws_iam_instance_profile" "data_platform_instance_profile" {
 }
 
 
+
+
+
+
+# Snowflake Access IAM Role
+resource "aws_iam_role" "snowflake_iam_role" {
+  name = var.snowflake_iam_role_name
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        AWS = "---"
+      }
+      Condition = {
+        StringEquals = {
+          "sts:ExternalId" = "---"
+        }
+      }
+    }]
+  })
+}
+
+
+
+# Snowflake Access IAM Policies
+resource "aws_iam_policy" "snowflake_iam_policy" {
+  name        = var.snowflake_iam_policy_name
+  description = "Data platform iam policy"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:GetObjectVersion",
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = [
+          "${aws_s3_bucket.streaming_bucket.arn}",
+          "${aws_s3_bucket.streaming_bucket.arn}/*",
+
+          "${aws_s3_bucket.batch_bucket.arn}",
+          "${aws_s3_bucket.batch_bucket.arn}/*",
+
+          "${aws_s3_bucket.document_extract_bucket.arn}",
+          "${aws_s3_bucket.document_extract_bucket.arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "snowflake_policy_attachment" {
+  role       = aws_iam_role.snowflake_iam_role.name
+  policy_arn = aws_iam_policy.snowflake_iam_policy.arn
+}
+
+
+
+
 # Output
 output "data_platform_instance_profile" {
   value = aws_iam_instance_profile.data_platform_instance_profile.name
+}
+
+output "snowflake_iam_role_arn" {
+  value = aws_iam_role.snowflake_iam_role.arn
 }

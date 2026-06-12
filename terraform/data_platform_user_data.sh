@@ -1,12 +1,13 @@
 #!/bin/bash
 
-# Install confluent-kafka, requests and anthropic. These libraries are required for this project. 
+# Install confluent-kafka, requests, anthropic and pyarrow. These libraries are required for this project. 
 # Confluent-kafka is a Python client library that will establish communication between our python script and Kafka broker
 # requests will enable sending requests/talk to the internet
 # anthropic enables connection to Anthropic (claude.ai)
 # boto3 is a python library that enables python communicate with AWS services
+# pyarrow is a python library used to convert multiple json into a columnar parquet format.
 sudo yum install -y python3-pip
-pip3 install confluent-kafka requests anthropic boto3
+pip3 install confluent-kafka requests anthropic boto3 pyarrow
 
 
 # Install Docker 
@@ -70,8 +71,8 @@ cd /home/ec2-user/Cloud-native-data-platform-with-AI-powered-Analytics-Agent/air
 
 
 # Start Airflow Containers. 
-# Note, I add "--build" because I created a dockerfile to store some important libraries like confluent-kafka, requests, anthropic and boto3
-# I installed them initially at the start of this script but noticed they were only installed on ec2 and not inside airflow container. Airflow needs these libraries installed in the container.
+# Note, I add "--build" because I created a dockerfile to store some important libraries that will be needed by Airflow for Batch process and Document extraction like: requests, anthropic and boto3
+# I installed them initially (on the host server) at the start of this script but noticed they were only installed on ec2 and not inside airflow container. Airflow needs these libraries installed in the container.
 docker-compose up -d --build
 
 

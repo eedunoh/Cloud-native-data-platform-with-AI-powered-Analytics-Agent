@@ -56,17 +56,31 @@ variable "ec2_key_name" {
   type        = string
 }
 
-variable "iam_role_name" {
-  default     = "data_platform_iam_role"
-  description = "IAM Role name"
+variable "server_iam_role_name" {
+  default     = "data_platform_server_iam_role"
+  description = "Server IAM Role name"
   type        = string
 }
 
-variable "iam_policy_name" {
-  default     = "data_platform_iam_policy"
-  description = "IAM Policy name"
+variable "server_iam_policy_name" {
+  default     = "data_platform_server_iam_policy"
+  description = "Server IAM Policy name"
   type        = string
 }
+
+
+variable "snowflake_iam_role_name" {
+  default     = "snowflake_iam_role"
+  description = "Snowflake IAM Role name"
+  type        = string
+}
+
+variable "snowflake_iam_policy_name" {
+  default     = "snowflake_iam_policy"
+  description = "Snowflake IAM Policy name"
+  type        = string
+}
+
 
 variable "instance_profile_name" {
   default     = "data_platform_instance_profile"
