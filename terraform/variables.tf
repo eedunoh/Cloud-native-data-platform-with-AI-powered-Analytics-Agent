@@ -111,3 +111,18 @@ variable "document_extract_bucket_name" {
   description = "ai document extracts bucket name"
   type        = string
 }
+
+
+variable "snowflake_notifications" {
+  description = "Map of S3 bucket names or prefix and their snowflake SQS ARN"
+  type = map(string)
+  default = {
+    "${var.streaming_bucket_name}" = "<INPUT_SNOWFLAKE SQS ARN HERE>",
+    "${var.batch_bucket_name}/stores/" = "<INPUT_SNOWFLAKE SQS ARN HERE>",
+    "${var.batch_bucket_name}/products/" = "<INPUT_SNOWFLAKE SQS ARN HERE>" ,
+    "${var.batch_bucket_name}/exchange_rates/" = "<INPUT_SNOWFLAKE SQS ARN HERE>" ,
+    "${var.batch_bucket_name}/customers/" = "<INPUT_SNOWFLAKE SQS ARN HERE>" ,
+    "${var.batch_bucket_name}/data_dictionary/" = "<INPUT_SNOWFLAKE SQS ARN HERE>" 
+    "${var.document_extract_bucket_name}" = "<INPUT_SNOWFLAKE SQS ARN HERE>" 
+  }
+}

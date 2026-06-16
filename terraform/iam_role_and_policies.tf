@@ -88,11 +88,11 @@ resource "aws_iam_role" "snowflake_iam_role" {
       Action = "sts:AssumeRole"
       Effect = "Allow"
       Principal = {
-        AWS = "---"
+        AWS = "arn:aws:iam::517178431299:user/qq3n1000-s"
       }
       Condition = {
         StringEquals = {
-          "sts:ExternalId" = "---"
+          "sts:ExternalId" = "CT90895_SFCRole=4_X7caLGEmCok5yq7dRtB52zbCvdc="
         }
       }
     }]
