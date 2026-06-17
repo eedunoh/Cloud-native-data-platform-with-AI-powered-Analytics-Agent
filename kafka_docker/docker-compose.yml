@@ -3,12 +3,18 @@ services:
     image: apache/kafka:3.7.0
     container_name: kafka
     ports:
+      # It maps 9092 on ec2 to 9092 inside the container.
       - "9092:9092"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
+
+      # (for your EC2 host) - This means Ec2 host can reach kafka via this port
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_INTERNAL://0.0.0.0:29092
+
+      # (for other containers) - Other containers can reach Kafka via this port
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
@@ -21,11 +27,66 @@ services:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
     ports:
+
+      # It maps 8090 on ec2 to 8080 inside the container. Thats why we can reach kafka UI on port 8090 via ec2 IP Address
       - "8090:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
+
+      # Inside each Docker container, localhost refers to the container itself, not the host machine, and not other containers.
+      # Kafka is running in a separate container named kafka.
+      # To reach Kafka from another container, you must use the container’s hostname (which in Docker Compose is the service name, e.g., kafka) and the port Kafka is listening on inside the Docker network.
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
     depends_on: [kafka]
+  
+  kafka_consumer:
+    build:
+
+    # The build context is the directory that Docker uses as the root for all COPY instructions. It is set by context: in docker-compose.yml (or the final argument of docker build .).
+    # Every COPY path inside the Dockerfile is relative to that context directory – not to the Dockerfile’s own location.
+    # It's Important to set the build context to the highest directory (root) that contains all the files you need (e.g., the project root).
+    # You cannot copy files that are outside the context. 
+    # A COPY path starting with '..' in the dockerfile tries to go above the context root, which Docker explicitly forbids. The build will fail with an error like “Forbidden path outside the build context”.
+      context: ..
+
+      dockerfile: kafka_docker/dockerfile.kafka_consumer
+    container_name: kafka_consumer
+    environment:
+
+      # Inside each Docker container, localhost refers to the container itself, not the host machine, and not other containers.
+      # Kafka is running in a separate container named kafka.
+      # To reach Kafka from another container, you must use the container’s hostname (which in Docker Compose is the service name, e.g., kafka) and the port Kafka is listening on inside the Docker network.
+      # The Python script reads BOOTSTRAP_SERVERS environment variable.
+      # kafka:29092 is the internal Docker listener that other containers use.
+      # When running outside Docker (e.g., on the host) the script defaults to localhost:9092.
+      BOOTSTRAP_SERVERS: kafka:29092
+    depends_on: [kafka, kafka-ui]
+    restart: unless-stopped
+
+  kafka_producer:
+    build:
+
+      # The build context is the directory that Docker uses as the root for all COPY instructions. It is set by context: in docker-compose.yml (or the final argument of docker build .).
+      # Every COPY path inside the Dockerfile is relative to that context directory – not to the Dockerfile’s own location.
+      # It's Important to set the build context to the highest directory (root) that contains all the files you need (e.g., the project root).
+      # You cannot copy files that are outside the context. 
+      # A COPY path starting with '..' in the dockerfile tries to go above the context root, which Docker explicitly forbids. The build will fail with an error like “Forbidden path outside the build context”.
+      context: ..
+      
+      dockerfile: kafka_docker/dockerfile.kafka_producer
+    container_name: kafka_producer
+    environment:
+
+      # Inside each Docker container, localhost refers to the container itself, not the host machine, and not other containers.
+      # Kafka is running in a separate container named kafka.
+      # To reach Kafka from another container, you must use the container’s hostname (which in Docker Compose is the service name, e.g., kafka) and the port Kafka is listening on inside the Docker network.
+      # The Python script reads BOOTSTRAP_SERVERS environment variable.
+      # kafka:29092 is the internal Docker listener that other containers use.
+      # When running outside Docker (e.g., on the host) the script defaults to localhost:9092.
+
+      BOOTSTRAP_SERVERS: kafka:29092
+    depends_on: [kafka, kafka_consumer]
+    restart: unless-stopped
 
 volumes:
   kafka_data:

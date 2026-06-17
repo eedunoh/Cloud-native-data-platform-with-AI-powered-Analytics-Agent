@@ -1,0 +1,29 @@
+# Start with the base image
+FROM python:3.9-slim
+
+# Set the work directory in the container
+WORKDIR /stream
+
+
+# IMPORTANT NOTE:
+    # The build context is the directory that Docker uses as the root for all COPY instructions. It is set by context: in docker-compose.yml (or the final argument of docker build .)
+    # Every COPY path inside the Dockerfile is relative to that context directory – not to the Dockerfile’s own location.
+    # It's Important to set the build context to the highest directory (root) that contains all the files you need (e.g., the project root).
+    # You cannot copy files that are outside the context. 
+    # A COPY path starting with '..' in the dockerfile tries to go above the context root, which Docker explicitly forbids. The build will fail with an error like “Forbidden path outside the build context”.
+
+
+# Copy the consumer.py script from the local directory into the work directory
+COPY ingestion/streaming/consumer.py .
+
+# Copy the config.py script. The consumer script needs some information from the config script
+COPY ingestion/config.py .
+
+# Install necessary libraries needed for the consumer.py script to run effectively
+# Confluent-kafka is a Python client library that will establish communication between our python script and Kafka broker
+# boto3 is a python library that enables python communicate with AWS services
+# pyarrow is a python library used to convert multiple json into a columnar parquet format.
+RUN pip install --no-cache-dir confluent-kafka pyarrow boto3 
+
+# Run the consumer.py script
+CMD [ "python", "consumer.py" ]

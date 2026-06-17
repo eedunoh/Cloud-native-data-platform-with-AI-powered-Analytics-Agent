@@ -154,3 +154,13 @@ volumes:
   # Same concept as kafka_data volume in the Kafka docker-compose
   postgres_data:
   airflow_logs:
+
+
+
+
+  # IMPORTANT NOTE:
+    # The build context is the directory that Docker uses as the root for all COPY instructions. It is set by context: in docker-compose.yml (or the final argument of docker build .)
+    # Every COPY path inside the Dockerfile is relative to that context directory – not to the Dockerfile’s own location.
+    # It's Important to set the build context to the highest directory (root) that contains all the files you need (e.g., the project root).
+    # You cannot copy files that are outside the context. 
+    # A COPY path starting with '..' in the dockerfile tries to go above the context root, which Docker explicitly forbids. The build will fail with an error like “Forbidden path outside the build context”.

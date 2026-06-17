@@ -1,19 +1,19 @@
 # Define local variables to store snowflake managed SQS ARN 
-# Replace these ARN with your snowflake generated SQS ARNs for each specific snowpipe (PIPE)
-# If you dont have the ARNs yet, DON'T enable (comment out) the 'locals' variable and Event Notification terraform configuration blocks. 
+# Replace these ARN with your snowflake generated SQS ARNs for each specific snowpipe (PIPE) and Apply
+# If you dont have the ARNs yet, DON'T enable (Comment-Out) the 'locals' variable and Event Notification terraform configuration blocks. 
 # You can go ahead to provision S3 buckets and add the snowflake SQS ARN and Event notifications later.
 
-locals {
-    streaming_sqs_arn = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4S5BZB34ZTGOL-0ZyQgQ756IP0JhXEIYvABA"  
+# locals {
+#     streaming_sqs_arn = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4S5BZB34ZTGOL-0ZyQgQ756IP0JhXEIYvABA"  
 
-    batch_stores_sqs_arn = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4S5BZB34ZTGOL-0ZyQgQ756IP0JhXEIYvABA"
-    batch_products_sqs_arn = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4S5BZB34ZTGOL-0ZyQgQ756IP0JhXEIYvABA"
-    batch_exchange_rates_sqs_arn = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4S5BZB34ZTGOL-0ZyQgQ756IP0JhXEIYvABA"
-    batch_customers_sqs_arn = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4ZTGOL-0ZyQgQ756IP0JhXEIYvABA"
-    batch_data_dictionary_sqs_arn = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4S5BZB34ZTGOL-0ZyQgQ756IP0JhXEIYvABA"
+#     batch_stores_sqs_arn          = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4S5BZB34ZTGOL-0ZyQgQ756IP0JhXEIYvABA"
+#     batch_products_sqs_arn        = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4S5BZB34ZTGOL-0ZyQgQ756IP0JhXEIYvABA"
+#     batch_exchange_rates_sqs_arn  = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4S5BZB34ZTGOL-0ZyQgQ756IP0JhXEIYvABA"
+#     batch_customers_sqs_arn       = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4ZTGOL-0ZyQgQ756IP0JhXEIYvABA"
+#     batch_data_dictionary_sqs_arn = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4S5BZB34ZTGOL-0ZyQgQ756IP0JhXEIYvABA"
 
-    document_extract_sqs_arn = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4S5BZB34ZTGOL-0ZyQgQ756IP0JhXEIYvABA"
-}
+#     document_extract_sqs_arn      = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4S5BZB34ZTGOL-0ZyQgQ756IP0JhXEIYvABA"
+# }
 
 
 
@@ -37,62 +37,62 @@ resource "aws_s3_bucket" "document_extract_bucket" {
 
 
 # Create S3 Event notifications
-# These S3 notification blocks could be made dynamic. 
-# But I'll stick to grasping the basic concept of bucket and prefix level notification for now
-resource "aws_s3_bucket_notification" "sales_streaming_notification" {
-    bucket = aws_s3_bucket.streaming_bucket.id
+# These S3 notification blocks could be made dynamic, But I'll stick to grasping the basic concept of bucket and prefix level notifications for now
 
-    queue {
-      queue_arn = local.streaming_sqs_arn
-      events = ["s3:ObjectCreated:*"]
-    }
-  }
+# resource "aws_s3_bucket_notification" "sales_streaming_notification" {
+#     bucket = aws_s3_bucket.streaming_bucket.id
 
-
-resource "aws_s3_bucket_notification" "document_extracts_notification" {
-    bucket = aws_s3_bucket.document_extract_bucket.id
-
-    queue {
-      queue_arn = local.streaming_sqs_arn
-      events = ["s3:ObjectCreated:*"]
-    }
-  }
+#     queue {
+#       queue_arn = local.streaming_sqs_arn
+#       events = ["s3:ObjectCreated:*"]
+#     }
+#   }
 
 
-resource "aws_s3_bucket_notification" "batch_tables_notification" {
-    bucket = aws_s3_bucket.batch_bucket.id
+# resource "aws_s3_bucket_notification" "document_extracts_notification" {
+#     bucket = aws_s3_bucket.document_extract_bucket.id
 
-    queue {
-      queue_arn = local.batch_stores_sqs_arn
-      events = ["s3:ObjectCreated:*"]
-      filter_prefix = "stores/"
-    }
+#     queue {
+#       queue_arn = local.document_extract_sqs_arn
+#       events = ["s3:ObjectCreated:*"]
+#     }
+#   }
 
-    queue {
-      queue_arn = local.batch_products_sqs_arn
-      events = ["s3:ObjectCreated:*"]
-      filter_prefix = "products/"
-    }
 
-    queue {
-      queue_arn = local.batch_stores_sqs_arn
-      events = ["s3:ObjectCreated:*"]
-      filter_prefix = "exchange_rates/"
-    }
+# resource "aws_s3_bucket_notification" "batch_tables_notification" {
+#     bucket = aws_s3_bucket.batch_bucket.id
 
-    queue {
-      queue_arn = local.batch_stores_sqs_arn
-      events = ["s3:ObjectCreated:*"]
-      filter_prefix = "customers/"
-    }
+#     queue {
+#       queue_arn = local.batch_stores_sqs_arn
+#       events = ["s3:ObjectCreated:*"]
+#       filter_prefix = "stores/"
+#     }
 
-    queue {
-      queue_arn = local.batch_stores_sqs_arn
-      events = ["s3:ObjectCreated:*"]
-      filter_prefix = "data_dictionary/"
-    }
+#     queue {
+#       queue_arn = local.batch_products_sqs_arn
+#       events = ["s3:ObjectCreated:*"]
+#       filter_prefix = "products/"
+#     }
 
-  }
+#     queue {
+#       queue_arn = local.batch_exchange_rates_sqs_arn
+#       events = ["s3:ObjectCreated:*"]
+#       filter_prefix = "exchange_rates/"
+#     }
+
+#     queue {
+#       queue_arn = local.batch_customers_sqs_arn
+#       events = ["s3:ObjectCreated:*"]
+#       filter_prefix = "customers/"
+#     }
+
+#     queue {
+#       queue_arn = local.batch_data_dictionary_sqs_arn
+#       events = ["s3:ObjectCreated:*"]
+#       filter_prefix = "data_dictionary/"
+#     }
+
+#   }
 
 
 

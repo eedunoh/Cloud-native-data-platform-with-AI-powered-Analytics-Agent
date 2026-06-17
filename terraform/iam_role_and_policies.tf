@@ -79,6 +79,7 @@ resource "aws_iam_instance_profile" "data_platform_instance_profile" {
 
 
 # Snowflake Access IAM Role
+# If you made changes to your Snowflake setup, ensure you've updated the STORAGE_AWS_IAM_USER_ARN and STORAGE_AWS_EXTERNAL_ID used in this role. 
 resource "aws_iam_role" "snowflake_iam_role" {
   name = var.snowflake_iam_role_name
 

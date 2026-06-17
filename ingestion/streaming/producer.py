@@ -34,10 +34,25 @@ dataset_url = Config.streaming_data_set
 # creating the producer object and connecting to kafka broker
 # 'bootstrap.servers' is just kafka term for the address of the broker
 
+# PLEASE READ THIS!!!
+
+# Initially, I ran the producer and consumer scripts directly on ec2 as part of the Ec2 user_data script bootstrap process. I used 'localhost:9092' as my 'bootstrap.servers'. 
+# This is means ec2 will connect to kafka on port 9092 as exposed/stated in the docker-compose file.
+
+# However, I made a change to run the producer and consumer scripts as service containers as part of kafka docker-compose file (production-like), so that they can start along with main Kafka and kafka-UI.
+# To effectively implement this change, I had to change the 'bootstrap.servers' from 'localhost:9092' TO 'kafka:29092'. I still retain 'localhost:9092' as the fallback server incase I run the script directly on ec2 in the future.
+# This means that since producer and consumer will now be running as service containers, they will communicate with kafka using the ports kafka exposed to other containers in the docker-compose file.
+
+# To make it more dynamic, I will use the environment variable ('BOOTSTRAP_SERVERS') created in the docker-compose file for the producer container service. 
+# Please reference the producer service section in the kafka docker-compose file.
+
+# The 'BOOTSTRAP_SERVERS' variable value: 'kafka:29092' will be the main server while 'localhost:9092' will be the fallback.
+
+bootstrap_servers = os.getenv('BOOTSTRAP_SERVERS', 'localhost:9092') 
+
 producer = Producer({
-    'bootstrap.servers': 'localhost:9092'
-}
-)
+    'bootstrap.servers':bootstrap_servers
+    })
 
 
 # Note: 'err' and 'msg' are NOT our variables they are kafka's variables. We only use them to display result of every operations. 
