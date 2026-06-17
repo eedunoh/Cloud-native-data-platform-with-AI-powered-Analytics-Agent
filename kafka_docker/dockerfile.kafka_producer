@@ -2,7 +2,7 @@
 FROM python:3.9-slim
 
 # Set the work directory in the container
-WORKDIR /stream
+WORKDIR /stream_folder
 
 
 # IMPORTANT NOTE:
@@ -13,11 +13,10 @@ WORKDIR /stream
     # A COPY path starting with '..' in the dockerfile tries to go above the context root, which Docker explicitly forbids. The build will fail with an error like “Forbidden path outside the build context”.
 
 
-# Copy the producer streaming script from the local directory into the work directory
-COPY ingestion/streaming/producer.py .
+# Copy the entire ingestion directory that contains the producer.py and config.py scripts. These are the files we are interested in to build this container service
+# Create similar directory with same contents in the container
+COPY ingestion/ ./ingestion/
 
-# Copy the config.py script. The producer script needs some information from the config script
-COPY ingestion/config.py .
 
 # Install necessary libraries needed for the producer.py script to run effectively
 # Confluent-kafka is a Python client library that will establish communication between our python script and Kafka broker
@@ -26,4 +25,4 @@ COPY ingestion/config.py .
 RUN pip install --no-cache-dir confluent-kafka requests boto3
 
 # Run the producer.py script
-CMD [ "python", "producer.py" ]
+CMD [ "python", "ingestion/streaming/producer.py" ]

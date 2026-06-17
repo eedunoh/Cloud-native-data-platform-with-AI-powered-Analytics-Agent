@@ -111,3 +111,15 @@ variable "document_extract_bucket_name" {
   description = "ai document extracts bucket name"
   type        = string
 }
+
+
+# When you configure an auto-ingest Snowpipe, Snowflake automatically generates an (ONLY 1) Amazon SQS queue to handle file notifications for ALL PIPES
+# Because Snowflake provisions one dedicated SQS queue per region for your entire account, every automated Snowpipe created on stages in that same region will display the exact same notification channel ARN.
+# ALWAYS CONFIRM ALL OF THEM HAVE THE SAME ARN. DON'T ASSUME
+# Replace these ARN with your snowflake generated SQS ARN
+
+variable "snowflake_aws_regional_sqs_arn" {
+  default = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4S5BZB34ZTGOL-0ZyQgQ756IP0JhXEIYvABA"
+  description = "Snowflake-AWS Regional SQS ARN"
+  type = string
+}

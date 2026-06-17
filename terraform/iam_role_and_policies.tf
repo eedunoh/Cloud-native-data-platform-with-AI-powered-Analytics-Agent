@@ -93,7 +93,7 @@ resource "aws_iam_role" "snowflake_iam_role" {
       }
       Condition = {
         StringEquals = {
-          "sts:ExternalId" = "CT90895_SFCRole=4_X7caLGEmCok5yq7dRtB52zbCvdc="
+          "sts:ExternalId" = "CT90895_SFCRole=4_wvxGQwBDYWV/YrdDOPj0baJwAMk="
         }
       }
     }]
