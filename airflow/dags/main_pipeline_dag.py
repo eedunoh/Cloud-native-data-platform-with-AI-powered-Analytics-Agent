@@ -6,6 +6,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.sensors.time_delta import TimeDeltaSensor
 from datetime import datetime, timedelta
 import os
+from os import environ
 import sys
 
 # Airflow needs to locate the ingestion scripts. 
@@ -100,6 +101,7 @@ with DAG(
 
         # Airflow uses double curly braces {{ ... }} for its own templates 
         env = {
+            **environ,
             'DB_ACCOUNT': '{{ var.value.DB_ACCOUNT }}',
             'DB_PASSWORD': '{{ var.value.DB_PASSWORD }}'
 
@@ -123,3 +125,31 @@ with DAG(
     # Define task dependencies. This is what creates the DAG structure, It tells how the DAG should run
     # This means batch_ingestion and document_extraction are run simultaneously and must complete before dbt_build run.
     start >> [batch_ingestion, document_extraction] >> wait_buffer >> dbt_build >> end
+
+
+
+# IMPORTANT!!! TROUBLESHOOTING
+
+# I encountered a "dbt: command not found" error while running the dbt_build task in Airflow. 
+# Although dbt was correctly installed inside the Airflow container (verified using docker "exec airflow_scheduler dbt --version" and "which dbt"), the Bash process launched by the BashOperator could not locate the executable.
+
+# The root cause was the use of the env parameter in the BashOperator. 
+# By defining only DB_ACCOUNT and DB_PASSWORD in the env dictionary, Airflow launched the Bash process with only those two environment variables instead of inheriting the container's default environment. 
+# Consequently, important variables such as PATH, HOME, USER, and AIRFLOW_HOME were not available to the task. 
+# Since Bash relies on the PATH environment variable to locate executables, it had no way of finding the installed dbt binary, resulting in the "dbt: command not found" error.
+
+# The recommended solution is to preserve the existing environment by including "os.environ" when defining env. "os.environ" is simply a dictionary containing the current environment variables. 
+# By merging it with the custom variables, the task retains all the default environment variables (including PATH, HOME etc.) while also receiving DB_ACCOUNT and DB_PASSWORD. 
+# An alternative approach is to manually redefine PATH and other required environment variables, but this is less maintainable and more error-prone.
+
+# Another potential cause of this error is how dbt is installed in the Docker image. 
+# Installing Python packages with "pip install --user" places executables in a user-specific directory such as /home/airflow/.local/bin, whereas installing them as the root user typically places them in a standard system directory such as /usr/local/bin. 
+# The latter is generally more robust because system directories are more commonly included in the default PATH. 
+
+# However, in this case, the installation location was not the root cause. The actual issue was that the PATH environment variable was not passed to the Bash process.
+
+
+
+# Troubleshooting order:
+# First, verify whether the BashOperator is overriding the environment using the env parameter and ensure the existing environment (especially PATH) is preserved.
+# If the environment is correct, then investigate where dbt was installed in the Docker image (--user vs. system-wide installation) and confirm that the executable is located in a directory included in PATH.
