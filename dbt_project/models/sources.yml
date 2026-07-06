@@ -1,0 +1,24 @@
+version: 2
+sources:
+  - name: source
+    database: data_platform_db
+    schema: raw
+    tables:
+      - name: streamed_sales
+        freshness: 
+          error_after:
+            count: 6
+            period: hour
+          warn_after:
+            count: 1
+            period: hour
+        loaded_at_field: streamed_at
+      - name: exchange_rates
+      - name: data_dictionary
+      - name: products
+      - name: customers
+      - name: stores
+      - name: ai_document_extracts
+
+
+

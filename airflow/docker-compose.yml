@@ -92,14 +92,28 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     volumes:
       # Mount your local dags folder into the container
-      # Airflow scans /opt/airflow/dags for DAG files automatically
-      - ./dags:/opt/airflow/dags
+      # ./dags means “the dags folder inside the same directory as this docker-compose file. It is relative to the compose file's location.
+      # Airflow scans /opt/airflow/dags for DAG files automatically.
+      - ./dags:/opt/airflow/dags     
 
       # Mount your ingestion scripts into the container
       # DAG tasks need to import and run these scripts
-      # ../ingestion means go up one level from airflow/ to the project root, then into ingestion/
+      # ../ingestion means go up one level from the directory containing the docker‑compose file to the project root, then into ingestion/
       # Inside the container they appear at /opt/airflow/ingestion
       - ../ingestion:/opt/airflow/ingestion
+
+
+      # Mount your DBT project folder into the container
+      # DAG tasks will need this to execute 'dbt deps' and 'dbt build'
+      # ../dbt_project means go up one level from the directory containing the docker‑compose file to the project root, then into dbt_project/
+      # Inside the container they appear at /opt/dbt_project
+      - ../dbt_project:/opt/dbt_project
+
+      # Mount your DBT project folder into the container
+      # DAG tasks will need this to execute 'dbt deps' and 'dbt build'
+      # ../dbt_profile means go up one level from the directory containing the docker‑compose file to the project root, then into dbt_profile/
+      # Inside the container they appear at /opt/dbt_profile
+      - ../dbt_profile:/opt/dbt_profile
 
       # Named Volumes- logs folder so task logs are written to EC2 disk
       - airflow_logs:/opt/airflow/logs
@@ -139,8 +153,11 @@ services:
       AIRFLOW__CORE__FERNET_KEY: ''
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     volumes:
+      # Check the explanations of these volume mounts in the preceeding container definition above
       - ./dags:/opt/airflow/dags
       - ../ingestion:/opt/airflow/ingestion
+      - ../dbt_project:/opt/dbt_project
+      - ../dbt_profile:/opt/dbt_profile
       - airflow_logs:/opt/airflow/logs
 
     # Start the Airflow scheduler process

@@ -1,7 +1,9 @@
 # Import the necessary libraries
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.sensors.time_delta import TimeDeltaSensor
 from datetime import datetime, timedelta
 import os
 import sys
@@ -20,6 +22,14 @@ sys.path.append('/opt/airflow')
 
 from ingestion.batch.batch_ingestor import run as run_batch
 from ingestion.documents.doc_extractor import run as run_doc_extractor
+
+
+
+# Next, define dbt_project and dbt_profile folders. 
+# These paths are gotten from mounted volumes in the airflow docker-compose file. I've added comments to explain how I derived these paths
+DBT_PROFILE_DIR = '/opt/dbt_profile'
+DBT_PROJECT_DIR ='/opt/dbt_project'
+
 
 
 # We will define default arguments applied to every task in the DAG
@@ -70,6 +80,39 @@ with DAG(
         python_callable=run_doc_extractor
     )
 
+    # Task: Wait for 5 minutes
+    wait_buffer = TimeDeltaSensor(
+        task_id='Wait_for_5_minutes',
+        delta=timedelta(minutes=5),
+        mode='reschedule',          # frees up the worker slot while waiting
+    )
+
+
+# If you notice, the way I define the DBT_PASSWORD variable is different compared to how I defined ANTHROPIC_API_KEY variable in the document_extraction script.
+
+# In document_extraction script, I used Variable.get("ANTHROPIC_API_KEY") in the script and then add the value in airflow variable UI. This worked because Airflow directly runs that Python code, so the Airflow Variable store is available.
+
+# For the profile.yml PASSWORD and ACCOUNT case, we set the variable in the yml file and then expose (define) it again in the DAG for airflow to see. ONLY then will Airflow Variable store be available.
+# Airflow does not directly use the password and account. DBT uses the password and account. So variable definition here will be different compared to the case above.
+
+    dbt_build = BashOperator(
+        task_id='Install_dbt_packages_and_run_dbt_build',
+
+        # Airflow uses double curly braces {{ ... }} for its own templates 
+        env = {
+            'DB_ACCOUNT': '{{ var.value.DB_ACCOUNT }}',
+            'DB_PASSWORD': '{{ var.value.DB_PASSWORD }}'
+
+        },
+
+        bash_command = (
+                f"dbt deps --project-dir {DBT_PROJECT_DIR} && "
+                f"dbt build --target prod "
+                f"--profiles-dir {DBT_PROFILE_DIR} "
+                f"--project-dir {DBT_PROJECT_DIR}"
+        )
+    )
+
     
     # Task: End with an Empty Operator. It also has no logic and does nothing but helps alot with regards to visual representation of the Airflow stages when viewd on the UI
     end = EmptyOperator(
@@ -78,4 +121,5 @@ with DAG(
 
 
     # Define task dependencies. This is what creates the DAG structure, It tells how the DAG should run
-    start >> [batch_ingestion, document_extraction] >> end
+    # This means batch_ingestion and document_extraction are run simultaneously and must complete before dbt_build run.
+    start >> [batch_ingestion, document_extraction] >> wait_buffer >> dbt_build >> end

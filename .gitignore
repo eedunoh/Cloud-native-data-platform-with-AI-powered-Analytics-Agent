@@ -13,3 +13,17 @@ ingestion/documents/policy_documents/
 *.tfstate.*
 *.terraform*
 *.pem
+
+dbt_instructions_setup.txt
+.python-version
+main.py
+pyproject.toml
+uv.lock
+
+.gitignore
+
+.vscode
+.venv
+logs
+
+package-lock.yml

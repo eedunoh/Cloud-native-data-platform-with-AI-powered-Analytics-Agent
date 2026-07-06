@@ -1,0 +1,21 @@
+snapshots:
+  - name: core_customers
+    relation: ref('customers')
+    config:
+      schema: silver
+      unique_key: user_id
+
+      # There two strategies one can use for snapshots. Timestamp OR Check. 
+      # It is advisable to use timestamp the timestamp strategy. It is used together with the updated_at column.
+      # If you use the check strategy, you can select specific columns or all columns dbt should check for updates or changes.
+      # Here is dbt documentation to explain this: https://docs.getdbt.com/docs/build/snapshots?version=2.0&name=Fusion
+      strategy: timestamp
+      updated_at: updated_at
+
+  - name: core_stores
+    relation: ref('stores')
+    config:
+      schema: silver
+      unique_key: store_id
+      strategy: timestamp
+      updated_at: updated_at

@@ -1,0 +1,130 @@
+version: 2
+
+models:
+  - name: streamed_sales 
+    config:
+      tags: ['silver']
+      materialized: table
+    columns:
+      - name: order_id
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_of_type:
+          # Snowflake doesn't have a pure INTEGER type; INT, INTEGER, BIGINT, etc., are all aliases for NUMBER with precision 38,0. So using INT in the variable below will throw an error.
+              column_type: number   
+
+      - name: order_date
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              max_value: 'current_date'       
+              # The database engine (Snowflake, PostgreSQL, etc.) evaluates current_date at query time and compares it to the column. You don’t need to pre‑define anything in dbt.
+
+      - name: currency_code
+        data_tests:
+          - accepted_values:
+              values: ['AUD', 'CAD', 'EUR', 'GBP', 'USD']
+              config:
+                severity: warn
+
+      - name: line_item
+        data_tests:
+          - less_than_one
+
+      - name: delivery_date
+        data_tests: 
+          - conditional_not_null:
+              condition_column: store_id
+              operator: ">"
+              condition_value: 0
+
+      - name: quantity
+        data_tests:
+          - less_than_one
+          - outlier_detection:
+              iqr_factor: 1.5
+              config:
+                severity: warn
+
+
+  - name: exchange_rates 
+    config:
+      tags: ['silver']
+      materialized: table
+    columns:
+      - name: currency
+        data_tests:
+          - accepted_values:
+              values: ['AUD', 'CAD', 'EUR', 'GBP', 'USD']
+              config:
+                severity: warn
+
+  
+  - name: data_dictionary 
+    config:
+      tags: ['silver']
+      materialized: table
+
+
+  - name: products
+    config:
+      tags: ['silver']
+      materialized: table
+    columns:
+      - name: product_id
+        data_tests:
+          - not_null
+          - unique
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: number
+    
+
+  - name: customers
+    config:
+      tags: ['silver']
+      materialized: table
+    columns:
+      - name: user_id
+        data_tests:
+          - not_null
+          - unique
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: number
+
+      - name: country
+        data_tests:
+          - accepted_values:
+              values: ['Online', 'Australia', 'Canada', 'France', 'Germany', 'Italy', 'Netherlands', 'United Kingdom', 'United States']
+              config:
+                severity: warn
+
+
+  - name: stores
+    config:
+      tags: ['silver']
+      materialized: table
+    columns:
+      - name: store_id
+        data_tests:
+          - not_null
+          - unique
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: number
+    
+      - name: country
+        data_tests:
+          - accepted_values:
+              values: ['Online', 'Australia', 'Canada', 'France', 'Germany', 'Italy', 'Netherlands', 'United Kingdom', 'United States']
+              config:
+                severity: warn
+
+
+  # - name: ai_document_extracts
+  #   config:
+  #     tags: ['silver']
+  #     materialized: table
+  #   columns:
+  #     - name: effective_date
+  #       data_tests:
+  #         - not_null
+  #         - is_valid_date_format:
+  #             date_format: 'MM/DD/YYYY'

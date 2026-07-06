@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: agg_revenue
+    config:
+      schema: gold
+      tags: ['gold']
+      materialized: table
+
+
+  - name: customer_360 
+    config:
+      schema: gold
+      tags: ['gold']
+      materialized: table
+
+  
+  - name: agg_store_stats 
+    config:
+      schema: gold
+      tags: ['gold']
+      materialized: table
+
+
+  - name: agg_product_stats
+    config:
+      schema: gold
+      tags: ['gold']
+      materialized: table
+    
+
+  - name: sales_line_stats
+    config:
+      schema: gold
+      tags: ['gold']
+      materialized: table
+
