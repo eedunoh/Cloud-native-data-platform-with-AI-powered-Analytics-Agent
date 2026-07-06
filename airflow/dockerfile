@@ -1,2 +1,2 @@
 From apache/airflow:2.8.0
-RUN pip install --user --no-cache-dir requests anthropic boto3
+RUN pip install --user --no-cache-dir requests anthropic boto3 dbt-core dbt-snowflake
