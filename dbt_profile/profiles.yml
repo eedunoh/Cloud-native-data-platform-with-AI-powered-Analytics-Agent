@@ -5,9 +5,9 @@
 data_platform:
   outputs:
     prod:
-      account: XQVJIAX-GB90152
+      account: "{{ env_var('DB_ACCOUNT') }}"
       database: data_platform_db
-      password: 'dataBaseUser6654!&'    # This is for testing. Dont push your DB password to github rather use environmental variables
+      password: "{{ env_var('DB_PASSWORD') }}"
       role: data_platform_role
       schema: silver
       threads: 8

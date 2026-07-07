@@ -77,3 +77,15 @@ cd /home/ec2-user/Cloud-native-data-platform-with-AI-powered-Analytics-Agent/air
 # Note, I add "--build" because I created a dockerfile to store some important libraries that will be needed by Airflow for Batch process and Document extraction like: requests, anthropic and boto3
 # I installed them initially (on the host server) at the start of this script but noticed they were only installed on ec2 and not inside airflow container. Airflow needs these libraries installed in the container.
 docker-compose up -d --build
+
+
+
+# I encountered an issue in Airflow DAG due to permission error. Airflow did not have the right permission to write (download and install dbt packages) into the dbt project folder because the folder belonged to the root user
+# To get more context on the issue, check the airflow DAG script and see TROUBLESHOOTING 3
+
+# To fix the issue, I have to change ownership and allow airflow own the dbt_project and dbt_profile directories.
+# 50000 is the default airflow UID based on Airflow documentation
+
+chown -R 50000:50000 /home/ec2-user/Cloud-native-data-platform-with-AI-powered-Analytics-Agent/dbt_project
+
+chown -R 50000:50000 /home/ec2-user/Cloud-native-data-platform-with-AI-powered-Analytics-Agent/dbt_profile

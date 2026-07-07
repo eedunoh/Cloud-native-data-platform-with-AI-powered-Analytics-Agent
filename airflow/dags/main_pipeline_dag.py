@@ -100,16 +100,16 @@ with DAG(
         task_id='Install_dbt_packages_and_run_dbt_build',
 
         # Airflow uses double curly braces {{ ... }} for its own templates 
-        # env = {
-        #     **environ,
-        #     'DB_ACCOUNT': '{{ var.value.DB_ACCOUNT }}',
-        #     'DB_PASSWORD': '{{ var.value.DB_PASSWORD }}'
+        env = {
+            **environ,
+            'DB_ACCOUNT': '{{ var.value.DB_ACCOUNT }}',
+            'DB_PASSWORD': '{{ var.value.DB_PASSWORD }}'
 
-        # },
+        },
 
         bash_command = (
-            "dbt deps --project-dir /opt/dbt_project 2>&1 && "
-            "dbt build --target prod --profiles-dir /opt/dbt_profile --project-dir /opt/dbt_project 2>&1"
+            f"dbt deps --project-dir {DBT_PROJECT_DIR} 2>&1 "
+            f"dbt build --target prod --profiles-dir {DBT_PROFILE_DIR} --project-dir {DBT_PROJECT_DIR}"
         )
     )
 
@@ -126,18 +126,30 @@ with DAG(
 
 
 
+
+
+
+
 # IMPORTANT!!! 
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # TROUBLESHOOTING 1
 
 # I encountered a "dbt: command not found" error while running the dbt_build task in Airflow. 
 # Although dbt was correctly installed inside the Airflow container (verified using docker "exec airflow_scheduler dbt --version" and "which dbt"), the Bash process launched by the BashOperator could not locate the executable.
 
+
+
+# Root Cause:
 # The root cause was the use of the env parameter in the BashOperator. 
 # By defining only DB_ACCOUNT and DB_PASSWORD in the env dictionary, Airflow launched the Bash process with only those two environment variables instead of inheriting the container's default environment. 
 # Consequently, important variables such as PATH, HOME, USER, and AIRFLOW_HOME were not available to the task. 
 # Since Bash relies on the PATH environment variable to locate executables, it had no way of finding the installed dbt binary, resulting in the "dbt: command not found" error.
 
+
+
+# Solution:
 # The recommended solution is to preserve the existing environment by including "os.environ" when defining env. "os.environ" is simply a dictionary containing the current environment variables. 
 # By merging it with the custom variables, the task retains all the default environment variables (including PATH, HOME etc.) while also receiving DB_ACCOUNT and DB_PASSWORD. 
 # An alternative approach is to manually redefine PATH and other required environment variables, but this is less maintainable and more error-prone.
@@ -156,9 +168,86 @@ with DAG(
 
 
 
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 # TROUBLESHOOTING 2
 
 # When saving the profiles.yml file, save it as profiles.yml NOT profile.yml. One has an "s" and the other doesn't. 
 # DBT expect the profiles with an "s"
 # If there is no "s" in the profiles, you will get an error and the airflow task will fail
+
+
+
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+# TROUBLESHOOTING 3
+
+# I encountered an issue where Airflow task (BashOperator) in the DAG ran the command: dbt deps --project-dir /opt/dbt_project && dbt build --target prod --profiles-dir /opt/dbt_profile --project-dir /opt/dbt_project.
+# The task failed with exit code 2, and the Airflow log showed "Output:" with absolutely nothing after it. No error message, No dbt banner, nothing.
+# The same task kept failing on retries, preventing the pipeline from progressing.
+
+
+
+# Root Cause:
+# The host directory mounted to /opt/dbt_project was created by root (via sudo) and had permissions 755, meaning only the owner (root) could write. 
+# The Airflow container runs as the airflow user (UID 50000, not root), which falls into the “others” permission category. Therefore, the airflow user could read files but could not create new subdirectories or write files.
+# dbt deps needs to create the dbt_packages/ directory and download package files into it. Because the airflow user lacked write permission on /opt/dbt_project, dbt deps failed instantly (exit code 2) and produced no output that Airflow could capture.
+# The dbt build command never ran because dbt deps failed first, and the && operator stopped execution.
+
+
+
+# Solution (Temporary and Permanent):
+# Temporary fix (inside running container): Used docker exec -u 0 (root) to change ownership of /opt/dbt_project to airflow:airflow (chown -R airflow: /opt/dbt_project). 
+# Then dbt deps ran successfully, creating dbt_packages with the required packages.
+
+
+# Permanent fix: Changed ownership of the host directory (the source of the bind mount) to match the airflow user’s UID. 
+# In the EC2 user data script, I ran: chown -R 50000:50000 /home/ec2-user/Cloud-native-data-platform-with-AI-powered-Analytics-Agent/dbt_project (UID 50000 is the airflow user in the official image, GID 0 is the root group; using 50000:50000 ensures the user owns the files). 
+# After this, any new container will see the directory owned by the airflow user and have full read/write access.
+
+
+# Alternative permanent fix: Instead of a bind mount, copy the dbt project into the Docker image during build using COPY --chown=airflow:0 ./dbt_project /opt/dbt_project. 
+# This bakes the correct ownership into the image and eliminates the runtime permission dependency on the host.
+
+
+
+# Additional Context:
+# Why was root used to install Git in the Dockerfile? 
+# System package installation (apt-get) requires root privileges to write to system directories. The airflow user cannot install system packages. 
+# After installation, the git binary is world-executable, so the airflow user can run it without any problem. The permission issue was unrelated to how Git was installed – it was purely about the bind-mounted directory.
+
+
+# Why didn’t Kafka have the same permission issue? 
+# Kafka likely ran as root (common in many Kafka images), or used Docker-managed volumes that handle permissions automatically, or the mounted directories only needed read access. 
+# The Kafka process didn’t need to write to a root-owned bind mount, so it never encountered a permission error.
+
+
+# Why did other mounted directories (ingestion, dbt_profile) work? 
+# They were only read by Airflow, not written to. Reading requires execute and read permissions on the directory, which were available to “others”. 
+# Writing (creating or modifying files) requires write permission, which was missing only on the dbt_project directory where dbt deps needed to write.
+
+
+# Final Outcome:
+# After fixing the host directory ownership, dbt deps runs successfully and installs the packages. The subsequent dbt build command executes using the already-tested profiles, and the Airflow task completes without errors.
+
+
+
+# Troubleshooting order:
+# First, I suspected Git was missing because dbt deps requires Git to clone packages. We checked the container and found Git was not installed. Added Git to the Dockerfile using apt-get and rebuilt.
+
+# After Git was present, the error persisted with the same silent exit code 2. I modified the bash command to redirect both stdout and stderr (2>&1) to ensure no output was lost; still no output.
+
+# I exec’d into the running Airflow container (as the airflow user) and manually ran dbt deps --project-dir /opt/dbt_project. The command produced no output and returned exit code 2.
+
+# I ran ls -la /opt/dbt_project and saw the directory was owned by root:root, with permissions 755 (drwxr-xr-x).
+
+# I tested write access with touch /opt/dbt_project/test_write and got "Permission denied", confirming the airflow user could not write to the directory.
+
+# I ran dbt --log-level debug deps --project-dir /opt/dbt_project and still saw no output until I realized the earlier silence was due to minimal output and the immediate failure. Later, after fixing permissions, the debug output showed it worked.
+
+# I inspected the Docker mounts (docker inspect) and found /opt/dbt_project was a bind mount from a host directory (e.g., /home/ec2-user/dbt_project) that was owned by root on the EC2 host.
+
+# I compared with other mounted directories (ingestion, dbt_profile) and realized those were only read, not written to, so the lack of write permission didn’t cause errors there.
