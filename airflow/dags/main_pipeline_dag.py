@@ -108,10 +108,8 @@ with DAG(
         # },
 
         bash_command = (
-                f"dbt deps --project-dir {DBT_PROJECT_DIR} && "
-                f"dbt build --target prod "
-                f"--profiles-dir {DBT_PROFILE_DIR} "
-                f"--project-dir {DBT_PROJECT_DIR}"
+            "dbt deps --project-dir /opt/dbt_project 2>&1 && "
+            "dbt build --target prod --profiles-dir /opt/dbt_profile --project-dir /opt/dbt_project 2>&1"
         )
     )
 

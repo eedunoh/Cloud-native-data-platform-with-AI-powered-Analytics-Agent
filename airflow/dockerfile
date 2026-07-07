@@ -1,7 +1,11 @@
 FROM apache/airflow:2.8.0
+
 USER root
 
-# install git
+# Install git. It will be needed to install packages
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/* 
+
 USER airflow
+
+# Install other dependencies
 RUN pip install --user --no-cache-dir requests anthropic boto3 dbt-core dbt-snowflake

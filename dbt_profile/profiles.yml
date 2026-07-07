@@ -7,7 +7,7 @@ data_platform:
     prod:
       account: XQVJIAX-GB90152
       database: data_platform_db
-      password: 'dataBaseUser6654!&'  # This is for testing. Dont push your DB password to github rather use environmental variables
+      password: 'dataBaseUser6654!&'    # This is for testing. Dont push your DB password to github rather use environmental variables
       role: data_platform_role
       schema: silver
       threads: 8
