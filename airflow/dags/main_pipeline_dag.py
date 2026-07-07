@@ -100,12 +100,12 @@ with DAG(
         task_id='Install_dbt_packages_and_run_dbt_build',
 
         # Airflow uses double curly braces {{ ... }} for its own templates 
-        env = {
-            **environ,
-            'DB_ACCOUNT': '{{ var.value.DB_ACCOUNT }}',
-            'DB_PASSWORD': '{{ var.value.DB_PASSWORD }}'
+        # env = {
+        #     **environ,
+        #     'DB_ACCOUNT': '{{ var.value.DB_ACCOUNT }}',
+        #     'DB_PASSWORD': '{{ var.value.DB_PASSWORD }}'
 
-        },
+        # },
 
         bash_command = (
                 f"dbt deps --project-dir {DBT_PROJECT_DIR} && "
@@ -128,7 +128,9 @@ with DAG(
 
 
 
-# IMPORTANT!!! TROUBLESHOOTING
+# IMPORTANT!!! 
+
+# TROUBLESHOOTING 1
 
 # I encountered a "dbt: command not found" error while running the dbt_build task in Airflow. 
 # Although dbt was correctly installed inside the Airflow container (verified using docker "exec airflow_scheduler dbt --version" and "which dbt"), the Bash process launched by the BashOperator could not locate the executable.
@@ -153,3 +155,12 @@ with DAG(
 # Troubleshooting order:
 # First, verify whether the BashOperator is overriding the environment using the env parameter and ensure the existing environment (especially PATH) is preserved.
 # If the environment is correct, then investigate where dbt was installed in the Docker image (--user vs. system-wide installation) and confirm that the executable is located in a directory included in PATH.
+
+
+
+
+# TROUBLESHOOTING 2
+
+# When saving the profiles.yml file, save it as profiles.yml NOT profile.yml. One has an "s" and the other doesn't. 
+# DBT expect the profiles with an "s"
+# If there is no "s" in the profiles, you will get an error and the airflow task will fail

@@ -1,0 +1,17 @@
+# NOTE, when saving this file, save it as profiles.yml NOT profile.yml. One has an "s" and the other doesn't. 
+# DBT expect the profiles with an "s"
+# If there is no "s" in the profiles, you will get an error and the airflow task will fail
+
+data_platform:
+  outputs:
+    prod:
+      account: XQVJIAX-GB90152
+      database: data_platform_db
+      password: 'dataBaseUser6654!&'  # This is for testing. Dont push your DB password to github rather use environmental variables
+      role: data_platform_role
+      schema: silver
+      threads: 8
+      type: snowflake
+      user: data_platform_user
+      warehouse: data_platform_wh
+  target: prod
