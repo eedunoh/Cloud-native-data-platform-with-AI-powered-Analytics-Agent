@@ -1,4 +1,7 @@
-FROM apache/airflow:2.8.0
+# Airflow 2.8.0's base image ships Python 3.8 by default, but the -python3.10 tag variant swaps in Python 3.10. 
+# This satisfies dbt 1.11's python 3.10+ requirement.
+
+FROM apache/airflow:2.8.0-python3.10
 
 USER root
 
@@ -8,4 +11,9 @@ RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 USER airflow
 
 # Install other dependencies
-RUN pip install --user --no-cache-dir requests anthropic boto3 dbt-core dbt-snowflake
+RUN pip install --user --no-cache-dir requests anthropic boto3 dbt-core==1.11.11 dbt-snowflake==1.11.6
+
+# I encountered an issue where dbt expected snapshots to be defined in individual SQL files. This behavior differed from my development environment, where defining the snapshots in `snapshots.yml` was sufficient.
+# After investigating, I found that the dbt version installed in the Docker container was an older release (1.8.x). In that version, snapshots are defined using separate SQL files.
+# Newer dbt releases (1.9+ and later) support defining snapshots directly in `snapshots.yml`, eliminating the need for separate `.sql` snapshot files while still creating the snapshot tables correctly.
+# To ensure consistent behavior between my local development environment and the Docker container, I updated the Dockerfile to pin the dbt Core and dbt Snowflake adapter versions.

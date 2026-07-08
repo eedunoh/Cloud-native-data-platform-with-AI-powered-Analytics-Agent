@@ -108,7 +108,7 @@ with DAG(
         },
 
         bash_command = (
-            f"dbt deps --project-dir {DBT_PROJECT_DIR} 2>&1 "
+            f"dbt deps --project-dir {DBT_PROJECT_DIR} 2>&1 && "
             f"dbt build --target prod --profiles-dir {DBT_PROFILE_DIR} --project-dir {DBT_PROJECT_DIR}"
         )
     )
@@ -251,3 +251,18 @@ with DAG(
 # I inspected the Docker mounts (docker inspect) and found /opt/dbt_project was a bind mount from a host directory (e.g., /home/ec2-user/dbt_project) that was owned by root on the EC2 host.
 
 # I compared with other mounted directories (ingestion, dbt_profile) and realized those were only read, not written to, so the lack of write permission didn’t cause errors there.
+
+
+
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+# TROUBLESHOOTING 4
+
+# I encountered an issue where dbt expected snapshots to be defined in individual SQL files. This behavior differed from my development environment, where defining the snapshots in `snapshots.yml` was sufficient.
+# After investigating, I found that the dbt version installed in the Docker container was an older release (1.8.x). In that version, snapshots are defined using separate SQL files.
+# Newer dbt releases (1.9+ and later) support defining snapshots directly in `snapshots.yml`, eliminating the need for separate `.sql` snapshot files while still creating the snapshot tables correctly.
+
+# Solution:
+# To ensure consistent behavior between my local development environment and the Docker container, I updated the Dockerfile to pin the dbt Core and dbt Snowflake adapter versions.
