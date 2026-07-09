@@ -3,7 +3,6 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.sensors.time_delta import TimeDeltaSensor
 from datetime import datetime, timedelta
 import os
 from os import environ
@@ -81,11 +80,10 @@ with DAG(
         python_callable=run_doc_extractor
     )
 
-    # Task: Wait for 5 minutes
-    wait_buffer = TimeDeltaSensor(
-        task_id='Wait_for_5_minutes',
-        delta=timedelta(minutes=5),
-        mode='reschedule',          # frees up the worker slot while waiting
+    # Task: Wait for 1 minute
+    wait_buffer = BashOperator(
+        task_id='Wait_for_1_minute',
+        bash_command='sleep 60'
     )
 
 
@@ -110,8 +108,6 @@ with DAG(
         bash_command = (
             f"dbt deps --project-dir {DBT_PROJECT_DIR} 2>&1 && "
             f"dbt build --target prod --profiles-dir {DBT_PROFILE_DIR} --project-dir {DBT_PROJECT_DIR}"
-            f"dbt docs generate --target prod --profiles-dir {DBT_PROFILE_DIR} --project-dir {DBT_PROJECT_DIR}"
-            f"aws s3 cp {DBT_PROJECT_DIR}/target/ {DBT_DOCS_S3_BUCKET} --recursive"
         )
     )
 
@@ -128,7 +124,7 @@ with DAG(
         },
 
         bash_command = (
-            f"dbt docs generate --target prod --profiles-dir {DBT_PROFILE_DIR} --project-dir {DBT_PROJECT_DIR}"
+            f"dbt docs generate --target prod --profiles-dir {DBT_PROFILE_DIR} --project-dir {DBT_PROJECT_DIR} && "
             f"aws s3 cp {DBT_PROJECT_DIR}/target/ {DBT_DOCS_S3_BUCKET} --recursive"
         )
     )

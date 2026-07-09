@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 USER airflow
 
 # Install other dependencies
-RUN pip install --user --no-cache-dir requests anthropic boto3 dbt-core==1.11.11 dbt-snowflake==1.11.6
+RUN pip install --user --no-cache-dir requests anthropic boto3 dbt-core==1.11.11 dbt-snowflake==1.11.6 awscli
 
 # I encountered an issue where dbt expected snapshots to be defined in individual SQL files. This behavior differed from my development environment, where defining the snapshots in `snapshots.yml` was sufficient.
 # After investigating, I found that the dbt version installed in the Docker container was an older release (1.8.x). In that version, snapshots are defined using separate SQL files.

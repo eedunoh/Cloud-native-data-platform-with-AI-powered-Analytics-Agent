@@ -40,7 +40,10 @@ resource "aws_iam_policy" "data_platform_iam_policy" {
           "${aws_s3_bucket.policy_document_bucket.arn}/*",
 
           "${aws_s3_bucket.document_extract_bucket.arn}",
-          "${aws_s3_bucket.document_extract_bucket.arn}/*"
+          "${aws_s3_bucket.document_extract_bucket.arn}/*",
+
+          "${aws_s3_bucket.dbt_docs.arn}",
+          "${aws_s3_bucket.dbt_docs.arn}/*"
         ]
       },
 

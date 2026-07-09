@@ -95,7 +95,7 @@ def extract_policy(source_bucket: str, key: str) -> dict:
                             I need brief/concise summary in the key_rules, changes and compliance_requirements section but capture all details:
                             {
                                 "policy_name": "name of the policy",
-                                "effective_date": "date if mentioned, use this format: 'MM/DD/YYYY' and make it a DATE data type",
+                                "effective_date": "date if mentioned, use this format: 'MM/DD/YYYY' ",
                                 "summary": "2-3 sentence summary and it should effectively summarize the document. One should be able to know what the whole document is all about by just reading the summary",
                                 "key_rules": ["rule 1", "rule 2", "rule 3"],
                                 "changes": ["change 1", "change 2"],
