@@ -113,7 +113,7 @@ variable "document_extract_bucket_name" {
 }
 
 variable "dbt_doc_bucket_name" {
-  default     = "dbt_docs_serve"
+  default     = "dbt-docs-serve-fyi"
   description = "dbt docs bucket name"
   type        = string
 }

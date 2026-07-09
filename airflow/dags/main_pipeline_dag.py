@@ -30,7 +30,7 @@ from ingestion.documents.doc_extractor import run as run_doc_extractor
 # These paths are gotten from mounted volumes in the airflow docker-compose file. I've added comments to explain how I derived these paths
 DBT_PROFILE_DIR = '/opt/dbt_profile'
 DBT_PROJECT_DIR ='/opt/dbt_project'
-DBT_DOCS_S3_BUCKET = 's3://dbt_docs_serve'
+DBT_DOCS_S3_BUCKET = 's3://dbt-docs-serve-fyi'
 
 
 # We will define default arguments applied to every task in the DAG
