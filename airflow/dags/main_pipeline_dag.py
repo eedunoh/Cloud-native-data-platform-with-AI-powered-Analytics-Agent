@@ -30,7 +30,7 @@ from ingestion.documents.doc_extractor import run as run_doc_extractor
 # These paths are gotten from mounted volumes in the airflow docker-compose file. I've added comments to explain how I derived these paths
 DBT_PROFILE_DIR = '/opt/dbt_profile'
 DBT_PROJECT_DIR ='/opt/dbt_project'
-
+DBT_DOCS_S3_BUCKET = 's3://dbt_docs_serve'
 
 
 # We will define default arguments applied to every task in the DAG
@@ -110,6 +110,26 @@ with DAG(
         bash_command = (
             f"dbt deps --project-dir {DBT_PROJECT_DIR} 2>&1 && "
             f"dbt build --target prod --profiles-dir {DBT_PROFILE_DIR} --project-dir {DBT_PROJECT_DIR}"
+            f"dbt docs generate --target prod --profiles-dir {DBT_PROFILE_DIR} --project-dir {DBT_PROJECT_DIR}"
+            f"aws s3 cp {DBT_PROJECT_DIR}/target/ {DBT_DOCS_S3_BUCKET} --recursive"
+        )
+    )
+
+
+    dbt_docs_generate = BashOperator(
+        task_id='Generate_and_copy_dbt_docs_to_s3_bucket',
+
+        # Airflow uses double curly braces {{ ... }} for its own templates 
+        env = {
+            **environ,
+            'DB_ACCOUNT': '{{ var.value.DB_ACCOUNT }}',
+            'DB_PASSWORD': '{{ var.value.DB_PASSWORD }}'
+
+        },
+
+        bash_command = (
+            f"dbt docs generate --target prod --profiles-dir {DBT_PROFILE_DIR} --project-dir {DBT_PROJECT_DIR}"
+            f"aws s3 cp {DBT_PROJECT_DIR}/target/ {DBT_DOCS_S3_BUCKET} --recursive"
         )
     )
 
@@ -122,7 +142,7 @@ with DAG(
 
     # Define task dependencies. This is what creates the DAG structure, It tells how the DAG should run
     # This means batch_ingestion and document_extraction are run simultaneously and must complete before dbt_build run.
-    start >> [batch_ingestion, document_extraction] >> wait_buffer >> dbt_build >> end
+    start >> [batch_ingestion, document_extraction] >> wait_buffer >> dbt_build >> dbt_docs_generate >> end
 
 
 

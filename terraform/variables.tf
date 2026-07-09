@@ -112,6 +112,12 @@ variable "document_extract_bucket_name" {
   type        = string
 }
 
+variable "dbt_doc_bucket_name" {
+  default     = "dbt_docs_serve"
+  description = "dbt docs bucket name"
+  type        = string
+}
+
 
 # When you configure an auto-ingest Snowpipe, Snowflake automatically generates an (ONLY 1) Amazon SQS queue to handle file notifications for ALL PIPES
 # Because Snowflake provisions one dedicated SQS queue per region for your entire account, every automated Snowpipe created on stages in that same region will display the exact same notification channel ARN.
