@@ -100,10 +100,26 @@ resource "aws_s3_bucket_website_configuration" "dbt_doc_website" {
   }
 }
 
+# By default, AWS access to s3 buckets private. We need to enable public access if we want to view them on browsers.
+resource "aws_s3_bucket_public_access_block" "dbt_doc_serve" {
+  bucket = aws_s3_bucket.dbt_docs.id
+
+  block_public_acls = false
+  block_public_policy = false
+  ignore_public_acls = false
+  restrict_public_buckets = false
+}
+
+
 # We need to give permission a "GetObject" permission to enable access to the index.html object. This will be implemented using the s3 bucket policy.
 # The bucket policy is what actually grants public read access to the objects.
 resource "aws_s3_bucket_policy" "dbt_docs_bucket_policy" {
   bucket = aws_s3_bucket.dbt_docs.id
+  
+  # S3 objects are private by default. In our bucket policy, "principal = *", this means anyone should be able to get objects from the s3 bucket. For this to work, the public access block must be disabled.
+  # The bucket policy is what grants public access; the block setting is what can prevent that policy from existing. 
+  # So, we need to ensure that the public access block is disabled first before the policy is attached.
+  depends_on = [ aws_s3_bucket_public_access_block.dbt_doc_serve]
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -114,16 +130,6 @@ resource "aws_s3_bucket_policy" "dbt_docs_bucket_policy" {
       Resource = "${aws_s3_bucket.dbt_docs.arn}/*"
     }]
   })
-}
-
-# By default, AWS access to s3 buckets private. We need to enable public access if we want to view them on browsers.
-resource "aws_s3_bucket_public_access_block" "dbt_doc_serve" {
-  bucket = aws_s3_bucket.dbt_docs.id
-
-  block_public_acls = false
-  block_public_policy = false
-  ignore_public_acls = false
-  restrict_public_buckets = false
 }
 
 # Since we've enabled public access, we need to add configurations on who owns objects in the buckets
