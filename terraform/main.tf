@@ -14,7 +14,11 @@ provider "aws" {
 }
 
 
-# Create VPC
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Create VPC, Public and Private subnets
+
 resource "aws_vpc" "main" {
   cidr_block = var.vpc_cidr
 
@@ -24,9 +28,8 @@ resource "aws_vpc" "main" {
 }
 
 
-# Create public subnets, internet gateway and route table
 resource "aws_subnet" "public" {
-  count                   = 2
+  count                   = var.az_count
   vpc_id                  = aws_vpc.main.id
   cidr_block              = var.public_subnet_cidr[count.index]
   availability_zone       = var.availability_zone[count.index]
@@ -37,6 +40,23 @@ resource "aws_subnet" "public" {
   }
 }
 
+resource "aws_subnet" "private" {
+  count                   = var.az_count
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = var.private_subnet_cidr[count.index]
+  availability_zone       = var.availability_zone[count.index]
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "private subnet ${count.index + 1}"
+  }
+}
+
+
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Create Internet Gateway and Public subnet Route table + attach them
 resource "aws_internet_gateway" "data_platform_igw" {
   vpc_id = aws_vpc.main.id
 
@@ -45,7 +65,7 @@ resource "aws_internet_gateway" "data_platform_igw" {
   }
 }
 
-resource "aws_route_table" "data_platform_route_table" {
+resource "aws_route_table" "public_route_table" {
   vpc_id = aws_vpc.main.id
 
   route {
@@ -59,67 +79,46 @@ resource "aws_route_table" "data_platform_route_table" {
 }
 
 resource "aws_route_table_association" "public" {
-  count          = 2
+  count          = var.az_count
   subnet_id      = aws_subnet.public[count.index].id
-  route_table_id = aws_route_table.data_platform_route_table.id
+  route_table_id = aws_route_table.public_route_table.id
 }
 
 
-# Create security group for the VPC
-resource "aws_security_group" "data_platform_sg" {
-  name        = var.data_platform_security_group_name
-  description = "Allow SSH and HTTP"
 
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Create Elastic IPs for each NAT gateway, Private subnet route tables + attach them
+resource "aws_eip" "nat_eip" {
+  count  = var.az_count
+  domain = "vpc"
+}
+
+resource "aws_nat_gateway" "data_platform_nat" {
+  count         = var.az_count
+  subnet_id     = aws_subnet.public[count.index].id
+  allocation_id = aws_eip.nat_eip[count.index].id
+  depends_on    = [aws_internet_gateway.data_platform_igw]
+}
+
+resource "aws_route_table" "private_route_table" {
+  count  = var.az_count
   vpc_id = aws_vpc.main.id
-
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "data_platform server ingress"
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # we can modify this rule to allow traffic from ONLY authorized IP addresses to achieve stricter security.
-  }
-
-  ingress {
-    description = "data_platform server ingress"
-    from_port   = 8090
-    to_port     = 8090
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # we can modify this rule to allow traffic from ONLY authorized IP addresses to achieve stricter security.
-  }
-
-  ingress {
-    description = "data_platform server ingress"
-    from_port   = 8085
-    to_port     = 8085
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # we can modify this rule to allow traffic from ONLY authorized IP addresses to achieve stricter security.
-  }
-
-  ingress {
-    description = "data_platform server ingress"
-    from_port   = 9092
-    to_port     = 9092
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # we can modify this rule to allow traffic from ONLY authorized IP addresses to achieve stricter security.
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.data_platform_nat[count.index].id
   }
 }
 
+resource "aws_route_table_association" "private" {
+  count          = var.az_count
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private_route_table[count.index].id
+}
+
+
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Output
 
@@ -131,10 +130,6 @@ output "public_subnets" {
   value = aws_subnet.public[*].id
 }
 
-output "data_platform_security_group_name" {
-  value = aws_security_group.data_platform_sg.name
-}
-
-output "data_platform_security_group_id" {
-  value = aws_security_group.data_platform_sg.id
+output "private_subnets" {
+  value = aws_subnet.private[*].id
 }

@@ -48,7 +48,7 @@ dataset_url = Config.streaming_data_set
 
 # The 'BOOTSTRAP_SERVERS' variable value: 'kafka:29092' will be the main server while 'localhost:9092' will be the fallback.
 
-bootstrap_servers = os.getenv('BOOTSTRAP_SERVERS', 'localhost:9092') 
+bootstrap_servers = os.getenv('BOOTSTRAP_SERVERS', Config.msk_bootsrap_server) 
 
 producer = Producer({
     'bootstrap.servers':bootstrap_servers

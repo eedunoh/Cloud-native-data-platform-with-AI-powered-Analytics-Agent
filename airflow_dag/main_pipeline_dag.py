@@ -25,11 +25,15 @@ from ingestion.documents.doc_extractor import run as run_doc_extractor
 
 
 
-# Next, define dbt_project and dbt_profile folders. 
-# These paths are gotten from mounted volumes in the airflow docker-compose file. I've added comments to explain how I derived these paths
+# Import config. 
+# Config stores some SSM parameters like bucket names. e.g dbt_docs s3 bucket which will be used to host the static website for dbt docs 
+from ingestion.config import Config
+
+
+# Next, define dbt_docs s3 bucket, dbt_project and dbt_profile folders.
 DBT_PROFILE_DIR = '/opt/dbt_profile'
-DBT_PROJECT_DIR ='/opt/dbt_project'
-DBT_DOCS_S3_BUCKET = 's3://dbt-docs-serve-fyi'
+DBT_PROJECT_DIR = '/opt/dbt_project'
+DBT_DOCS_S3_BUCKET = Config.dbt_doc_bucket
 
 
 # We will define default arguments applied to every task in the DAG
@@ -215,18 +219,29 @@ with DAG(
 
 
 
-# Solution (Temporary and Permanent):
-# Temporary fix (inside running container): Used docker exec -u 0 (root) to change ownership of /opt/dbt_project to airflow:airflow (chown -R airflow: /opt/dbt_project). 
-# Then dbt deps ran successfully, creating dbt_packages with the required packages.
+# Solution:
+
+# PERMANENT FIX 1 (recommended for ECS, Fargate, or any containerised deployment):
+# Bake the files into the Docker image with the correct ownership at build time. In your Dockerfile, after COPY, set the owner to airflow (UID 50000) and group to root (GID 0):
+
+# Example:
+# COPY --chown=50000:0 ./dbt_project /opt/dbt_project
+# COPY --chown=50000:0 ./dbt_profile /opt/dbt_profile
+
+# This guarantees that the airflow user inside the container can write to these directories (needed for dbt deps). 
+# The ownership is baked into the image, so it works on any host, with no runtime dependency on the EC2 file system. No volumes, no user‑data hacks. This is the production‑grade approach for ECS.
 
 
-# Permanent fix: Changed ownership of the host directory (the source of the bind mount) to match the airflow user’s UID. 
-# In the EC2 user data script, I ran: chown -R 50000:50000 /home/ec2-user/Cloud-native-data-platform-with-AI-powered-Analytics-Agent/dbt_project (UID 50000 is the airflow user in the official image, GID 0 is the root group; using 50000:50000 ensures the user owns the files). 
-# After this, any new container will see the directory owned by the airflow user and have full read/write access.
 
+# PERMANENT FIX 2 (only for bare‑metal EC2 with bind‑mounts):
+# Change the ownership of the host directory to match the airflow user’s UID.
+# If you are running Airflow directly on an EC2 instance (not in ECS) and you bind‑mount a host directory into the container, you must ensure the host directory is owned by UID 50000. 
+# You can do this in the EC2 user‑data script:
 
-# Alternative permanent fix: Instead of a bind mount, copy the dbt project into the Docker image during build using COPY --chown=airflow:0 ./dbt_project /opt/dbt_project. 
-# This bakes the correct ownership into the image and eliminates the runtime permission dependency on the host.
+# Example:
+# chown -R 50000:50000 /path/to/dbt_project
+
+# After this, any container that mounts that directory will see it owned by the airflow user and will have full read/write access.
 
 
 
@@ -248,25 +263,6 @@ with DAG(
 
 # Final Outcome:
 # After fixing the host directory ownership, dbt deps runs successfully and installs the packages. The subsequent dbt build command executes using the already-tested profiles, and the Airflow task completes without errors.
-
-
-
-# Troubleshooting order:
-# First, I suspected Git was missing because dbt deps requires Git to clone packages. We checked the container and found Git was not installed. Added Git to the Dockerfile using apt-get and rebuilt.
-
-# After Git was present, the error persisted with the same silent exit code 2. I modified the bash command to redirect both stdout and stderr (2>&1) to ensure no output was lost; still no output.
-
-# I exec’d into the running Airflow container (as the airflow user) and manually ran dbt deps --project-dir /opt/dbt_project. The command produced no output and returned exit code 2.
-
-# I ran ls -la /opt/dbt_project and saw the directory was owned by root:root, with permissions 755 (drwxr-xr-x).
-
-# I tested write access with touch /opt/dbt_project/test_write and got "Permission denied", confirming the airflow user could not write to the directory.
-
-# I ran dbt --log-level debug deps --project-dir /opt/dbt_project and still saw no output until I realized the earlier silence was due to minimal output and the immediate failure. Later, after fixing permissions, the debug output showed it worked.
-
-# I inspected the Docker mounts (docker inspect) and found /opt/dbt_project was a bind mount from a host directory (e.g., /home/ec2-user/dbt_project) that was owned by root on the EC2 host.
-
-# I compared with other mounted directories (ingestion, dbt_profile) and realized those were only read, not written to, so the lack of write permission didn’t cause errors there.
 
 
 

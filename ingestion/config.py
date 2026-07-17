@@ -45,8 +45,10 @@ class Config:
         cls.batch_bucket = cls.get_ssm_parameter("batch_bucket")
         cls.policy_document_bucket = cls.get_ssm_parameter("policy_document_bucket")
         cls.document_extract_bucket = cls.get_ssm_parameter("document_extract_bucket")
+        cls.msk_bootsrap_server = cls.get_ssm_parameter("msk_bootsrap_server")
+        cls.dbt_doc_bucket = cls.get_ssm_parameter("dbt_docs_s3_bucket")
         
-        missing = [name for name in ["streamed_data_bucket", "batch_bucket", "policy_document_bucket", "document_extract_bucket"]
+        missing = [name for name in ["streamed_data_bucket", "batch_bucket", "policy_document_bucket", "document_extract_bucket", "msk_bootsrap_server", "dbt_doc_bucket"]
                 if getattr(cls, name) is None]
         
         if missing:

@@ -20,78 +20,79 @@ resource "aws_s3_bucket" "document_extract_bucket" {
   bucket = var.document_extract_bucket_name
 }
 
-
-
-# Create S3 Event notifications
-
-# Because Snowflake provisions one dedicated SQS queue per region for your entire account, every automated Snowpipe created on stages in that same region will display the exact same notification channel ARN.
-
-# These S3 notification blocks could be made dynamic, But I'll stick to grasping the basic concept of bucket and prefix level notifications for now
-
-resource "aws_s3_bucket_notification" "sales_streaming_notification" {
-    bucket = aws_s3_bucket.streaming_bucket.id
-
-    queue {
-      queue_arn = var.snowflake_aws_regional_sqs_arn
-      events = ["s3:ObjectCreated:*"]
-    }
-  }
-
-
-resource "aws_s3_bucket_notification" "document_extracts_notification" {
-    bucket = aws_s3_bucket.document_extract_bucket.id
-
-    queue {
-      queue_arn = var.snowflake_aws_regional_sqs_arn
-      events = ["s3:ObjectCreated:*"]
-    }
-  }
-
-
-resource "aws_s3_bucket_notification" "batch_tables_notification" {
-    bucket = aws_s3_bucket.batch_bucket.id
-
-    queue {
-      queue_arn = var.snowflake_aws_regional_sqs_arn
-      events = ["s3:ObjectCreated:*"]
-      filter_prefix = "stores/"
-    }
-
-    queue {
-      queue_arn = var.snowflake_aws_regional_sqs_arn
-      events = ["s3:ObjectCreated:*"]
-      filter_prefix = "products/"
-    }
-
-    queue {
-      queue_arn = var.snowflake_aws_regional_sqs_arn
-      events = ["s3:ObjectCreated:*"]
-      filter_prefix = "exchange_rates/"
-    }
-
-    queue {
-      queue_arn = var.snowflake_aws_regional_sqs_arn
-      events = ["s3:ObjectCreated:*"]
-      filter_prefix = "customers/"
-    }
-
-    queue {
-      queue_arn = var.snowflake_aws_regional_sqs_arn
-      events = ["s3:ObjectCreated:*"]
-      filter_prefix = "data_dictionary/"
-    }
-
-  }
-
-
-
 # To view dbt docs, we need a static website served through S3. 
 resource "aws_s3_bucket" "dbt_docs" {
   bucket = var.dbt_doc_bucket_name
 }
 
 
-# This configuration will enable S3 top act as a server and will use the index.html file in the bucket to serve web contents
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Create S3 Event notifications
+# Because Snowflake provisions one dedicated SQS queue per region for your entire account, every automated Snowpipe created on stages in that same region will display the exact same notification channel ARN.
+# These S3 notification blocks could be made dynamic, But I'll stick to grasping the basic concept of bucket and prefix level notifications for now
+
+resource "aws_s3_bucket_notification" "sales_streaming_notification" {
+  bucket = aws_s3_bucket.streaming_bucket.id
+
+  queue {
+    queue_arn = var.snowflake_aws_regional_sqs_arn
+    events    = ["s3:ObjectCreated:*"]
+  }
+}
+
+
+resource "aws_s3_bucket_notification" "document_extracts_notification" {
+  bucket = aws_s3_bucket.document_extract_bucket.id
+
+  queue {
+    queue_arn = var.snowflake_aws_regional_sqs_arn
+    events    = ["s3:ObjectCreated:*"]
+  }
+}
+
+
+resource "aws_s3_bucket_notification" "batch_tables_notification" {
+  bucket = aws_s3_bucket.batch_bucket.id
+
+  queue {
+    queue_arn     = var.snowflake_aws_regional_sqs_arn
+    events        = ["s3:ObjectCreated:*"]
+    filter_prefix = "stores/"
+  }
+
+  queue {
+    queue_arn     = var.snowflake_aws_regional_sqs_arn
+    events        = ["s3:ObjectCreated:*"]
+    filter_prefix = "products/"
+  }
+
+  queue {
+    queue_arn     = var.snowflake_aws_regional_sqs_arn
+    events        = ["s3:ObjectCreated:*"]
+    filter_prefix = "exchange_rates/"
+  }
+
+  queue {
+    queue_arn     = var.snowflake_aws_regional_sqs_arn
+    events        = ["s3:ObjectCreated:*"]
+    filter_prefix = "customers/"
+  }
+
+  queue {
+    queue_arn     = var.snowflake_aws_regional_sqs_arn
+    events        = ["s3:ObjectCreated:*"]
+    filter_prefix = "data_dictionary/"
+  }
+
+}
+
+
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# This configuration will enable S3 bucket act as a static website host/server and will use the index.html file in the bucket to serve web contents
 resource "aws_s3_bucket_website_configuration" "dbt_doc_website" {
   bucket = aws_s3_bucket.dbt_docs.id
 
@@ -101,33 +102,33 @@ resource "aws_s3_bucket_website_configuration" "dbt_doc_website" {
 }
 
 # By default, AWS access to s3 buckets private. We need to enable public access if we want to view them on browsers.
+# In our bucket policy (shown below), "principal = *", this means anyone should be able to get objects from the s3 bucket. For this to work, the public access block must be disabled ("= false")
 resource "aws_s3_bucket_public_access_block" "dbt_doc_serve" {
   bucket = aws_s3_bucket.dbt_docs.id
 
-  block_public_acls = false
-  block_public_policy = false
-  ignore_public_acls = false
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
   restrict_public_buckets = false
 }
 
 
-# We need to give permission a "GetObject" permission to enable access to the index.html object. This will be implemented using the s3 bucket policy.
+# We need to give a "GetObject" permission to enable access to the index.html object. This will be implemented using the s3 bucket policy.
 # The bucket policy is what actually grants public read access to the objects.
 resource "aws_s3_bucket_policy" "dbt_docs_bucket_policy" {
   bucket = aws_s3_bucket.dbt_docs.id
-  
-  # S3 objects are private by default. In our bucket policy, "principal = *", this means anyone should be able to get objects from the s3 bucket. For this to work, the public access block must be disabled.
-  # The bucket policy is what grants public access; the block setting is what can prevent that policy from existing. 
+
+  # The bucket policy is what grants public access; the block setting (shown above) is what can prevent that policy from existing. 
   # So, we need to ensure that the public access block is disabled first before the policy is attached.
-  depends_on = [ aws_s3_bucket_public_access_block.dbt_doc_serve]
+  depends_on = [aws_s3_bucket_public_access_block.dbt_doc_serve]
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect = "Allow"
+      Effect    = "Allow"
       Principal = "*"
-      Action = "s3:GetObject"
-      Resource = "${aws_s3_bucket.dbt_docs.arn}/*"
+      Action    = "s3:GetObject"
+      Resource  = "${aws_s3_bucket.dbt_docs.arn}/*"
     }]
   })
 }
@@ -135,13 +136,15 @@ resource "aws_s3_bucket_policy" "dbt_docs_bucket_policy" {
 # Since we've enabled public access, we need to add configurations on who owns objects in the buckets
 resource "aws_s3_bucket_ownership_controls" "dbt_doc_bucket_ownership" {
   bucket = aws_s3_bucket.dbt_docs.id
-  
+
   rule {
     object_ownership = "BucketOwnerPreferred"
   }
 }
 
 
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Output
 output "streamed_data_bucket_arn" {
@@ -158,4 +161,8 @@ output "policy_document_bucket_arn" {
 
 output "document_extract_bucket_arn" {
   value = aws_s3_bucket.document_extract_bucket.arn
+}
+
+output "dbt_doc_bucket_arn" {
+  value = aws_s3_bucket.dbt_docs.arn
 }

@@ -1,7 +1,8 @@
+
 # Select the base image
 FROM python:3.9-slim
 
-# Set the work directory in the container
+# set the work directory in the container
 WORKDIR /stream_folder
 
 
@@ -12,10 +13,9 @@ WORKDIR /stream_folder
     # You cannot copy files that are outside the context. 
     # A COPY path starting with '..' in the dockerfile tries to go above the context root, which Docker explicitly forbids. The build will fail with an error like “Forbidden path outside the build context”.
 
-
-# Copy the entire ingestion directory that contains the producer.py and config.py scripts. These are the files we are interested in to build this container service
-# Create similar directory with same contents in the container
-COPY ingestion/ ./ingestion/
+# Bake necessary directories (that contains the producer.py and config.py scripts) into the image and grant airflow the permission to own (read, write and execute) files in the directories.
+# airflow (UID 50000) and group to root (GID 0)
+COPY --chown=50000:0 ./ingestion/ ./ingestion/
 
 
 # Install necessary libraries needed for the producer.py script to run effectively
@@ -23,6 +23,7 @@ COPY ingestion/ ./ingestion/
 # requests will enable sending requests/talk to the internet
 # boto3 is a python library that enables python communicate with AWS services
 RUN pip install --no-cache-dir confluent-kafka requests boto3
+
 
 # Run the producer.py script
 CMD [ "python", "ingestion/streaming/producer.py" ]

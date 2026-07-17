@@ -13,6 +13,12 @@ ingestion/documents/policy_documents/
 *.tfstate.*
 *.terraform*
 *.pem
+*.terraform.lock.hcl
+
+.terraform.lock.hcl
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
 
 dbt_instructions_setup.txt
 .python-version
@@ -27,3 +33,7 @@ uv.lock
 logs
 
 package-lock.yml
+
+# docker-compose and its associated dockerfile isn't used in the latest iteration of this project
+bare_ec2_deprecated_airflow_docker_files
+bare_ec2_deprecated_kafka_docker_files

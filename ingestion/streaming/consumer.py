@@ -51,7 +51,7 @@ s3_client = boto3.client("s3", region_name=Config.aws_region)
 
 # The 'BOOTSTRAP_SERVERS' variable value: 'kafka:29092' will be the main server while 'localhost:9092' will be the fallback.
 
-bootstrap_servers = os.getenv('BOOTSTRAP_SERVERS', 'localhost:9092')
+bootstrap_servers = os.getenv('BOOTSTRAP_SERVERS', Config.msk_bootsrap_server)
 
 
 

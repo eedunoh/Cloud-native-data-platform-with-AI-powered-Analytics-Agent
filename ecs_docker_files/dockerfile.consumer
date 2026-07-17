@@ -13,16 +13,17 @@ WORKDIR /stream_folder
     # A COPY path starting with '..' in the dockerfile tries to go above the context root, which Docker explicitly forbids. The build will fail with an error like “Forbidden path outside the build context”.
 
 
-# Copy the entire ingestion directory that contains the consumer.py and config.py scripts. These are the files we are interested in to build this container service
-# Create similar directory with same contents in the container
-COPY ingestion/ ./ingestion/
+# Bake necessary directories (that contains the producer.py and config.py scripts) into the image and grant airflow the permission to own (read, write and execute) files in the directories.
+# airflow (UID 50000) and group to root (GID 0)
+COPY --chown=50000:0 ./ingestion/ ./ingestion/
 
 
 # Install necessary libraries needed for the consumer.py script to run effectively
 # Confluent-kafka is a Python client library that will establish communication between our python script and Kafka broker
 # boto3 is a python library that enables python communicate with AWS services
+# requests will enable sending requests/talk to the internet
 # pyarrow is a python library used to convert multiple json into a columnar parquet format.
-RUN pip install --no-cache-dir confluent-kafka pyarrow boto3 
+RUN pip install --no-cache-dir confluent-kafka pyarrow requests boto3 
 
 # Run the consumer.py script
 CMD [ "python", "ingestion/streaming/consumer.py" ]
