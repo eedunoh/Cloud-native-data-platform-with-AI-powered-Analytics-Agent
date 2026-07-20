@@ -59,6 +59,7 @@ resource "aws_autoscaling_group" "data_platform_asg" {
     version = "$Latest"
   }
 
+  force_delete = true
 }
 
 
@@ -92,13 +93,13 @@ resource "aws_lb_target_group" "airflow_webserver_target_group" {
   name        = var.airflow_webserver_target_group_name
   vpc_id      = aws_vpc.main.id
   protocol    = "HTTP"
-  port        = 80
+  port        = 8080
   target_type = "ip"
 
   health_check {
     enabled             = true
-    path                = "/"
-    port                = 80
+    path                = "/health"
+    port                = "traffic-port"
     interval            = 30
     timeout             = 5
     healthy_threshold   = 2
@@ -112,13 +113,13 @@ resource "aws_lb_target_group" "kafka_ui_target_group" {
   name        = var.kafka_ui_target_group_name
   vpc_id      = aws_vpc.main.id
   protocol    = "HTTP"
-  port        = 80
+  port        = 8080
   target_type = "ip"
 
   health_check {
     enabled             = true
     path                = "/"
-    port                = 80
+    port                = "traffic-port"
     interval            = 30
     timeout             = 5
     healthy_threshold   = 2
@@ -172,7 +173,7 @@ resource "aws_ecs_capacity_provider" "capacity_provider" {
     # It prevents the ASG from terminating EC2 instances that still have running ECS tasks.
     # ENABLED → ECS protects busy instances from scale-in (terminated by ASG)
     # DISABLED → ASG may terminate any instance during scale-in.
-    
+
     # FOR NOW WE WILL DISABLE IT. If we later want managed termination protection, we will change it to "ENALBLED" and also enable instance protection in the ASG (protect_from_scale_in = true on the ASG resource)
     managed_termination_protection = "DISABLED"
 
@@ -232,7 +233,7 @@ locals {
   airflow_log_config = {
     logDriver = "awslogs",
     options = {
-      awslogs-group         = "${aws_cloudwatch_log_group.kafka_utilities_log_group.name}",
+      awslogs-group         = "${aws_cloudwatch_log_group.airflow_log_group.name}",
       awslogs-region        = var.region,
       awslogs-stream-prefix = "airflow"
     }
@@ -262,7 +263,7 @@ resource "aws_ecs_task_definition" "airflow_init_task" {
   execution_role_arn = aws_iam_role.ecs_task_exec_role.arn
   network_mode       = "awsvpc"
   cpu                = "512"
-  memory             = "1024"
+  memory             = "512"
   container_definitions = jsonencode([
     {
       name      = "airflow_init_task",
@@ -273,7 +274,7 @@ resource "aws_ecs_task_definition" "airflow_init_task" {
       logConfiguration = local.airflow_log_config,
       command = [
         "bash", "-c",
-        "airflow db migrate && (airflow users list | grep -q admin || airflow users create --username adminsuperuser --password adminSuperUser1123 --firstname Admin --lastname User --role Admin --email admin@example.com)"
+        "airflow db migrate && (airflow users list | grep -q admin || airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com)"
       ],
       environment = [{ name = "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", value = local.airflow_rds_connection }]
     }
@@ -309,8 +310,8 @@ resource "aws_ecs_task_definition" "airflow_webserver_task" {
   task_role_arn      = aws_iam_role.airflow_task_role.arn
   execution_role_arn = aws_iam_role.ecs_task_exec_role.arn
   network_mode       = "awsvpc"
-  cpu                = "512"
-  memory             = "1024"
+  cpu                = "1024"
+  memory             = "2048"
   container_definitions = jsonencode([
     {
       name             = "airflow_webserver_task",

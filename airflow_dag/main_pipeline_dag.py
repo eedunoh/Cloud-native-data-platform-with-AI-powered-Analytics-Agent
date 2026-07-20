@@ -9,8 +9,8 @@ from os import environ
 import sys
 
 # Airflow needs to locate the ingestion scripts. 
-# /opt/airflow is where we mount our project files inside the airflow container. It simply tells Python: "When looking for modules to import, start from the root folder (/opt/airflow)"
-sys.path.append('/opt/airflow')
+# /opt is where we mount our project files inside the airflow container. It simply tells Python: "When looking for modules to import, start from the root folder (/opt)"
+sys.path.append('/opt')
 
 
 # Next, we import our ingestion scripts
@@ -239,7 +239,9 @@ with DAG(
 # You can do this in the EC2 user‑data script:
 
 # Example:
-# chown -R 50000:50000 /path/to/dbt_project
+# COPY --chown=50000:0 ./airflow_dag/ /opt/airflow/dags/
+# COPY --chown=50000:0 ./dbt_profile/ /opt/dbt_profile/
+# COPY --chown=50000:0 ./dbt_project/ /opt/dbt_project/
 
 # After this, any container that mounts that directory will see it owned by the airflow user and will have full read/write access.
 

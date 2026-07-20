@@ -229,7 +229,7 @@ variable "ecs_tasks" {
 }
 
 variable "ec2_server_type" {
-  default     = "t3.micro"
+  default     = "t3.medium"
   description = "server type"
   type        = string
 }

@@ -123,7 +123,9 @@ resource "aws_iam_policy" "airflow_iam_policy" {
           "arn:aws:ssm:${var.region}:*:parameter/streaming_bucket",
           "arn:aws:ssm:${var.region}:*:parameter/batch_bucket",
           "arn:aws:ssm:${var.region}:*:parameter/policy_document_bucket",
-          "arn:aws:ssm:${var.region}:*:parameter/document_extract_bucket"
+          "arn:aws:ssm:${var.region}:*:parameter/document_extract_bucket",
+          "arn:aws:ssm:${var.region}:*:parameter/msk_bootsrap_server",
+          "arn:aws:ssm:${var.region}:*:parameter/dbt_docs_s3_bucket"
         ]
       },
 
@@ -182,7 +184,14 @@ resource "aws_iam_policy" "kafka_utilities_iam_policy" {
           "ssm:GetParameters",
           "ssm:GetParameterHistory"
         ]
-        Resource = ["arn:aws:ssm:${var.region}:*:parameter/streaming_bucket"]
+        Resource = [
+          "arn:aws:ssm:${var.region}:*:parameter/streaming_bucket",
+          "arn:aws:ssm:${var.region}:*:parameter/batch_bucket",
+          "arn:aws:ssm:${var.region}:*:parameter/policy_document_bucket",
+          "arn:aws:ssm:${var.region}:*:parameter/document_extract_bucket",
+          "arn:aws:ssm:${var.region}:*:parameter/msk_bootsrap_server",
+          "arn:aws:ssm:${var.region}:*:parameter/dbt_docs_s3_bucket"
+        ]
       },
 
     ]

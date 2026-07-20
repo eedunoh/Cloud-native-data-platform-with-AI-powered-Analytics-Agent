@@ -1,17 +1,17 @@
 # Airflow 2.8.0's base image ships Python 3.8 by default, but the -python3.10 tag variant swaps in Python 3.10. 
 # This satisfies dbt 1.11's python 3.10+ requirement.
 
-FROM apache/airflow:2.8.0-python3.1
+FROM apache/airflow:2.8.0-python3.10
 
 # use root user
 USER root
 
 # Bake necessary directories into the image and grant airflow the permission to own (read, write and execute) files in the directories.
 # airflow (UID 50000) and group to root (GID 0)
-COPY --chown=50000:0 -R ./airflow_dag/ /opt/airflow/dags/
-COPY --chown=50000:0 -R ./dbt_profile/ /opt/dbt_profile/
-COPY --chown=50000:0 -R ./dbt_project/ /opt/dbt_project/
-COPY --chown=50000:0 -R ./ingestion/ /opt/ingestion/
+COPY --chown=50000:0 ./airflow_dag/ /opt/airflow/dags/
+COPY --chown=50000:0 ./dbt_profile/ /opt/dbt_profile/
+COPY --chown=50000:0 ./dbt_project/ /opt/dbt_project/
+COPY --chown=50000:0 ./ingestion/ /opt/ingestion/
 
 # Install git. It will be needed to install dbt packages
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/* 
