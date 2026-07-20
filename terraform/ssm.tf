@@ -26,10 +26,13 @@ resource "aws_ssm_parameter" "msk_bootstrap_brokers_server" {
   name  = "msk_bootsrap_server"
   type  = "String"
   value = aws_msk_cluster.data_platform_kafka.bootstrap_brokers
+
+  # This waits for msk to be created before populating the value so that it wont return a NULL which may result in a deployment error
+  depends_on = [aws_msk_cluster.data_platform_kafka]
 }
 
 resource "aws_ssm_parameter" "dbt_doc_s3_bucket_name" {
-  name = "dbt_docs_s3_bucket"
-  type = "String"
+  name  = "dbt_docs_s3_bucket"
+  type  = "String"
   value = aws_s3_bucket.dbt_docs.bucket
 }

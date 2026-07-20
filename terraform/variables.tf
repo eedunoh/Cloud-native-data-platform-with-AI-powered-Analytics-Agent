@@ -7,7 +7,7 @@ variable "region" {
 }
 
 variable "vpc_name" {
-  default     = "Cloud Native Data Platform VPC"
+  default     = "Cloud-Native-Data-Platform-VPC"
   description = "VPC name"
   type        = string
 }
@@ -246,7 +246,7 @@ variable "ec2_key_name" {
 
 # Relational Database Service (RDS) Variables
 variable "airflow_db_name" {
-  default     = "airflow-postgres-database"
+  default     = "airflowdb"
   description = "airflow RDS database name"
   type        = string
 }
@@ -264,13 +264,13 @@ variable "airflow_rds_instance_class" {
 }
 
 variable "airflow_db_username" {
-  default     = "admin"
+  default     = "adminsuperuser"
   description = "airflow db username"
   type        = string
 }
 
 variable "airflow_db_password" {
-  default     = "admin"
+  default     = "adminSuperUser1123"
   description = "airflow db password"
   type        = string
 }
@@ -292,7 +292,7 @@ variable "aws_ecr_name" {
 
 # Kafka Variables
 variable "kafka_cluster_name" {
-  default     = "data_platform_msk_cluster"
+  default     = "data-platform-msk-cluster"
   description = "data platform kafka cluster name"
   type        = string
 }

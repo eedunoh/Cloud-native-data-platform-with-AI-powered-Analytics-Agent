@@ -9,7 +9,7 @@
 
 resource "aws_msk_cluster" "data_platform_kafka" {
   cluster_name           = var.kafka_cluster_name
-  kafka_version          = "3.9.2"
+  kafka_version          = "3.6.0"
   number_of_broker_nodes = var.az_count
 
   broker_node_group_info {
@@ -30,6 +30,17 @@ resource "aws_msk_cluster" "data_platform_kafka" {
         enabled   = true
         log_group = aws_cloudwatch_log_group.mskafka_log_group.name
       }
+    }
+  }
+
+
+  # AWS defaults to mutual TLS_PLAINTEXT (port 9094). This is encrypted but will require client certificates.
+  # My producer, consumer, and Kafka‑UI are not configured with client certificates yet since this is just for learning, so they wont be able to connect. 
+  # To fix it, I need to explicitly set the encryption mode to PLAINTEXT (port 9092, simplest and without encryption)
+  encryption_info {
+    encryption_in_transit {
+      client_broker = "TLS_PLAINTEXT"
+      in_cluster    = true
     }
   }
 

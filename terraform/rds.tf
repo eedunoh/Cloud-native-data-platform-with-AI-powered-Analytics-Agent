@@ -16,10 +16,10 @@ resource "aws_db_instance" "airflow_postgres_instance" {
   username = var.airflow_db_username
   password = var.airflow_db_password
 
-  allocated_storage     = 10
+  allocated_storage     = 20
   max_allocated_storage = 50
   storage_type          = "gp3"
-  engine_version        = "16.4"
+  engine_version        = "16"
 
   db_subnet_group_name   = aws_db_subnet_group.airflow_db_subnet_group.name
   vpc_security_group_ids = [aws_security_group.airflow_rds_sg.id]

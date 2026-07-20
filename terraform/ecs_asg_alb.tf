@@ -17,7 +17,7 @@ data "aws_ssm_parameter" "ecs_node_ami" {
 
 resource "aws_launch_template" "data_platform_lt" {
   name          = var.data_platform_lt_name
-  image_id      = data.aws_ssm_parameter.ecs_node_ami.name
+  image_id      = data.aws_ssm_parameter.ecs_node_ami.value
   instance_type = var.ec2_server_type
 
   vpc_security_group_ids = [aws_security_group.launch_template_sg.id]
@@ -27,8 +27,16 @@ resource "aws_launch_template" "data_platform_lt" {
 
   key_name = var.ec2_key_name
 
-  # In user_data you is required to pass ECS cluster name, so AWS can register EC2 instance as node of ECS cluster at boot time.
-  user_data = templatefile("data_platform_user_data.sh", { ecs_cluster_name = aws_ecs_cluster.data_platform_cluster.name })
+  # With this configuration, the EC2 in the ASG will join the ECS cluster
+  user_data = base64encode(<<-EOF
+      #!/bin/bash
+      echo ECS_CLUSTER=${aws_ecs_cluster.data_platform_cluster.name} >> /etc/ecs/ecs.config;
+    EOF
+  )
+
+  tags = {
+    Name = "ECS-Server"
+  }
 }
 
 
@@ -164,7 +172,9 @@ resource "aws_ecs_capacity_provider" "capacity_provider" {
     # It prevents the ASG from terminating EC2 instances that still have running ECS tasks.
     # ENABLED → ECS protects busy instances from scale-in (terminated by ASG)
     # DISABLED → ASG may terminate any instance during scale-in.
-    managed_termination_protection = "ENABLED"
+    
+    # FOR NOW WE WILL DISABLE IT. If we later want managed termination protection, we will change it to "ENALBLED" and also enable instance protection in the ASG (protect_from_scale_in = true on the ASG resource)
+    managed_termination_protection = "DISABLED"
 
     managed_scaling {
       maximum_scaling_step_size = 2
@@ -257,13 +267,13 @@ resource "aws_ecs_task_definition" "airflow_init_task" {
     {
       name      = "airflow_init_task",
       image     = "${aws_ecr_repository.airflow_repository.repository_url}:latest",
-      essential = false,
+      essential = true,
 
       # This enables cloudwatch log group  
       logConfiguration = local.airflow_log_config,
       command = [
         "bash", "-c",
-        "airflow db migrate && (airflow users list | grep -q admin || airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com)"
+        "airflow db migrate && (airflow users list | grep -q admin || airflow users create --username adminsuperuser --password adminSuperUser1123 --firstname Admin --lastname User --role Admin --email admin@example.com)"
       ],
       environment = [{ name = "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", value = local.airflow_rds_connection }]
     }
@@ -372,11 +382,15 @@ resource "aws_ecs_task_definition" "kafka_ui_task" {
   container_definitions = jsonencode([
     {
       name      = "kafka_ui_task",
-      image     = "provectuslabs/kafka-ui:latest",   #official (widely used) kafka-ui image
+      image     = "provectuslabs/kafka-ui:latest", #official (widely used) kafka-ui image
       essential = true,
 
       # This enables cloudwatch log group
       logConfiguration = local.kafka_log_config,
+
+      # The hostPort is however ignored because we are using "awsvpc" + "ip" connection 
+      portMappings = [{ containerPort = 8080, protocol = "tcp" }],
+
       environment = [
         { name = "KAFKA_CLUSTERS_0_NAME", value = "${var.kafka_cluster_name}" },
 
@@ -399,11 +413,6 @@ resource "aws_ecs_task_definition" "kafka_ui_task" {
 # The scheduler service is completely separate — the ALB never touches it. Both services can run on the same physical host(s) without interfering, because they have different IPs and no port conflicts (each task has its own ENI). 
 # Scaling is based on IPs, not host ports.
 
-
-# I had defined a DEFAULT capacity_provider_strategy for the whole ECS CLUSTER (scroll up), So there is no need defining them in individual service blocks. 
-# If I do, they will overwrite the default capacity_provider_strategy.
-
-
 # I don't need to define launch_type = "EC2" because this service uses a capacity provider.
 # launch_type and capacity_provider_strategy are mutually exclusive, you can use only one.
 # By using capacity_provider_strategy, ECS can work with the Auto Scaling Group to scale EC2 capacity based on task demand, which is not available when using launch_type alone.
@@ -416,6 +425,14 @@ resource "aws_ecs_task_definition" "kafka_ui_task" {
 # In ECS, there is no native “service‑to‑service” dependency like Docker Compose’s depends_on. 
 # You can’t tell ECS “start the producer service only after the consumer service is healthy”. 
 # ECS services are independent; they start tasks as soon as the service is created, and tasks keep restarting on failure.
+
+
+# TROUBLESHOOT
+# When you create a service without a launch type or service specific capacity provider strategy, the AWS API automatically copies the cluster's default capacity‑provider strategy onto that service.
+# Terraform reads the service after creation, sees that the service has a capacity_provider_strategy, and saves it in the state file.
+# Because your .tf file doesn't include that capacity_provider_strategy block, Terraform plans to remove it, and this change forces a destructive replace of the whole service.
+# This is why we DON'T rely on the cluster default capacity strategy. ENSURE to add the strategy to each service so that terraform doesn't force replace them due to a mismatch in .tf configuration
+
 
 
 # In subsequent iterations of this project, I will add ECS Service Auto Scaling
@@ -439,6 +456,14 @@ resource "aws_ecs_service" "airflow_scheduler_service" {
   ordered_placement_strategy {
     type  = "spread"
     field = "attribute:ecs.availability-zone"
+  }
+
+  # It is important to define a service-specific capacity provider strategy instead of relying solely on the cluster's default strategy. 
+  # Without it, the AWS API automatically applies the cluster's default settings, creating a mismatch with your terraform configuration file and that forces Terraform to destructively replace the service.
+  capacity_provider_strategy {
+    capacity_provider = aws_ecs_capacity_provider.capacity_provider.name
+    base              = 1
+    weight            = 100
   }
 }
 
@@ -464,6 +489,14 @@ resource "aws_ecs_service" "airflow_webserver_service" {
     type  = "spread"
     field = "attribute:ecs.availability-zone"
   }
+
+  # It is important to define a service-specific capacity provider strategy instead of relying solely on the cluster's default strategy. 
+  # Without it, the AWS API automatically applies the cluster's default settings, creating a mismatch with your terraform configuration file and that forces Terraform to destructively replace the service.  
+  capacity_provider_strategy {
+    capacity_provider = aws_ecs_capacity_provider.capacity_provider.name
+    base              = 1
+    weight            = 100
+  }
 }
 
 
@@ -487,6 +520,14 @@ resource "aws_ecs_service" "kafka_producer_service" {
     field = "attribute:ecs.availability-zone"
   }
 
+  # It is important to define a service-specific capacity provider strategy instead of relying solely on the cluster's default strategy. 
+  # Without it, the AWS API automatically applies the cluster's default settings, creating a mismatch with your terraform configuration file and that forces Terraform to destructively replace the service.
+  capacity_provider_strategy {
+    capacity_provider = aws_ecs_capacity_provider.capacity_provider.name
+    base              = 1
+    weight            = 100
+  }
+
   # Ensure MSK exists before this service is created
   depends_on = [aws_msk_cluster.data_platform_kafka]
 }
@@ -506,6 +547,14 @@ resource "aws_ecs_service" "kafka_consumer_service" {
   ordered_placement_strategy {
     type  = "spread"
     field = "attribute:ecs.availability-zone"
+  }
+
+  # It is important to define a service-specific capacity provider strategy instead of relying solely on the cluster's default strategy. 
+  # Without it, the AWS API automatically applies the cluster's default settings, creating a mismatch with your terraform configuration file and that forces Terraform to destructively replace the service.
+  capacity_provider_strategy {
+    capacity_provider = aws_ecs_capacity_provider.capacity_provider.name
+    base              = 1
+    weight            = 100
   }
 
   # Ensure MSK exists before this service is created
@@ -533,6 +582,14 @@ resource "aws_ecs_service" "kafka_ui_service" {
   ordered_placement_strategy {
     type  = "spread"
     field = "attribute:ecs.availability-zone"
+  }
+
+  # It is important to define a service-specific capacity provider strategy instead of relying solely on the cluster's default strategy. 
+  # Without it, the AWS API automatically applies the cluster's default settings, creating a mismatch with your terraform configuration file and that forces Terraform to destructively replace the service.
+  capacity_provider_strategy {
+    capacity_provider = aws_ecs_capacity_provider.capacity_provider.name
+    base              = 1
+    weight            = 100
   }
 
   # Ensure MSK exists before this service is created
