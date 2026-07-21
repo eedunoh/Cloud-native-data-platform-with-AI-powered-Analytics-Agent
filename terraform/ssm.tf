@@ -36,3 +36,15 @@ resource "aws_ssm_parameter" "dbt_doc_s3_bucket_name" {
   type  = "String"
   value = aws_s3_bucket.dbt_docs.bucket
 }
+
+resource "aws_ssm_parameter" "snowflake_db_password" {
+  name = "snowflake_db_password"
+  type = "String"
+  value = var.snowflake_db_password
+}
+
+resource "aws_ssm_parameter" "snowflake_account" {
+  name = "snowflake_account"
+  type = "String"
+  value = var.snowflake_account
+}

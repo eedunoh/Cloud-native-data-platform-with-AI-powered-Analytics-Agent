@@ -333,3 +333,26 @@ variable "snowflake_aws_regional_sqs_arn" {
   description = "snowflake-AWS regional SQS arn"
   type        = string
 }
+
+variable "snowflake_storage_aws_iam_user_arn" {
+  default = "arn:aws:iam::517178431299:user/qq3n1000-s"
+  description = "Storage IAM user ARN to be attached to the snowflake IAM Role on AWS"
+  type = string
+}
+
+variable "snowflake_storage_aws_external_id" {
+  default = "CT90895_SFCRole=4_wvxGQwBDYWV/YrdDOPj0baJwAMk="
+  description = "Storage external ID attached to the snowflake IAM Role on AWS"
+}
+
+variable "snowflake_db_password" {
+  default = "dataBaseUser6654!&"
+  description = "Data Platform user password on Snowflake"
+  type = string
+}
+
+variable "snowflake_account" {
+  default = "XQVJIAX-GB90152"
+  description = "Snowflake Account Identifier"
+  type = string
+}

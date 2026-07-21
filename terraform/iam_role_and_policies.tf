@@ -119,14 +119,7 @@ resource "aws_iam_policy" "airflow_iam_policy" {
           "ssm:GetParameters",
           "ssm:GetParameterHistory"
         ]
-        Resource = [
-          "arn:aws:ssm:${var.region}:*:parameter/streaming_bucket",
-          "arn:aws:ssm:${var.region}:*:parameter/batch_bucket",
-          "arn:aws:ssm:${var.region}:*:parameter/policy_document_bucket",
-          "arn:aws:ssm:${var.region}:*:parameter/document_extract_bucket",
-          "arn:aws:ssm:${var.region}:*:parameter/msk_bootsrap_server",
-          "arn:aws:ssm:${var.region}:*:parameter/dbt_docs_s3_bucket"
-        ]
+        Resource = ["arn:aws:ssm:${var.region}:*:parameter/*"]
       },
 
     ]
@@ -184,14 +177,7 @@ resource "aws_iam_policy" "kafka_utilities_iam_policy" {
           "ssm:GetParameters",
           "ssm:GetParameterHistory"
         ]
-        Resource = [
-          "arn:aws:ssm:${var.region}:*:parameter/streaming_bucket",
-          "arn:aws:ssm:${var.region}:*:parameter/batch_bucket",
-          "arn:aws:ssm:${var.region}:*:parameter/policy_document_bucket",
-          "arn:aws:ssm:${var.region}:*:parameter/document_extract_bucket",
-          "arn:aws:ssm:${var.region}:*:parameter/msk_bootsrap_server",
-          "arn:aws:ssm:${var.region}:*:parameter/dbt_docs_s3_bucket"
-        ]
+        Resource = ["arn:aws:ssm:${var.region}:*:parameter/*"]
       },
 
     ]
@@ -219,11 +205,11 @@ resource "aws_iam_role" "snowflake_iam_role" {
       Action = "sts:AssumeRole"
       Effect = "Allow"
       Principal = {
-        AWS = "arn:aws:iam::517178431299:user/qq3n1000-s"
+        AWS = "${var.snowflake_storage_aws_iam_user_arn}"
       }
       Condition = {
         StringEquals = {
-          "sts:ExternalId" = "CT90895_SFCRole=4_wvxGQwBDYWV/YrdDOPj0baJwAMk="
+          "sts:ExternalId" = "${var.snowflake_storage_aws_external_id}"
         }
       }
     }]
@@ -248,8 +234,6 @@ resource "aws_iam_policy" "snowflake_iam_policy" {
           "s3:GetBucketLocation"
         ]
         Resource = [
-          "${aws_s3_bucket.streaming_bucket.arn}",
-          "${aws_s3_bucket.streaming_bucket.arn}/*",
 
           "${aws_s3_bucket.batch_bucket.arn}",
           "${aws_s3_bucket.batch_bucket.arn}/*",

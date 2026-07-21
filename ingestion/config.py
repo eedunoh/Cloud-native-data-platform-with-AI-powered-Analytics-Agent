@@ -47,13 +47,14 @@ class Config:
         cls.document_extract_bucket = cls.get_ssm_parameter("document_extract_bucket")
         cls.msk_bootsrap_server = cls.get_ssm_parameter("msk_bootsrap_server")
         cls.dbt_doc_bucket = cls.get_ssm_parameter("dbt_docs_s3_bucket")
-        
-        missing = [name for name in ["streamed_data_bucket", "batch_bucket", "policy_document_bucket", "document_extract_bucket", "msk_bootsrap_server", "dbt_doc_bucket"]
+        cls.snowflake_db_password = cls.get_ssm_parameter("snowflake_db_password")
+        cls.snowflake_account = cls.get_ssm_parameter("snowflake_account")
+
+        missing = [name for name in ["streamed_data_bucket", "batch_bucket", "policy_document_bucket", "document_extract_bucket", "msk_bootsrap_server", "dbt_doc_bucket", "snowflake_db_password", "snowflake_account"]
                 if getattr(cls, name) is None]
         
         if missing:
             raise ValueError(f"Failed to load required SSM parameters: {missing}")
-
 
 
 # Explicitly initialize the class variables

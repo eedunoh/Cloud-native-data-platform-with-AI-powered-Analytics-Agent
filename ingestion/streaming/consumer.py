@@ -11,7 +11,7 @@ import sys
 import pyarrow as pa
 import pyarrow.parquet as pq
 import io
-
+import snowflake.connector
 
 
 # When running a script directly (e.g., python3 batch_ingestor.py), Python only looks for modules (e.g config) in the script's own folder.
@@ -34,6 +34,23 @@ logger = logging.getLogger(__name__)
 s3_streaming_bucket = Config.streamed_data_bucket
 
 s3_client = boto3.client("s3", region_name=Config.aws_region)
+
+# In future iterations, I can decide to make other connection variables dynamic. 
+# The secret variables will be stored in Github Action secrets (prod) and referenced in AWS SSM parameter store via tf.var, and finally called in the Config.py file. 
+# Using this approach, I don't expose secrets such as db password and account identifier
+conn = snowflake.connector.connect(
+    user = "data_platform_user",
+    password = Config.snowflake_db_password,
+    account =  Config.snowflake_account,
+    warehouse= "data_platform_wh",
+    database= "data_platform_db",
+    schema= "raw",
+)
+
+conn.autocommit(True)
+
+cursor = conn.cursor()
+
 
 
 
@@ -222,6 +239,7 @@ try:
         # It will return to begining of the loop
         if msg.error():
             print(f"Error: {msg.error()}")
+            logger.error("Kafka error: %s", msg.error())
             continue
 
 
@@ -230,14 +248,32 @@ try:
         if msg.value() is None:
             continue
 
-        # If there is a message containing valid data, python decodes the message/event and stores it in the event_buffer
-        records = json.loads(msg.value().decode('utf-8'))
+
+        # If there is a message containing valid data, extract the raw_json. 
+        # raw_json will be sent to Snowflake while python_dict will be converted to parquet and sent to s3
+        raw_json = msg.value().decode("utf-8")
+        
+        records = json.loads(raw_json)
 
         # PS:
             #  msg.value() → raw bytes: b'{"symbol": "AAPL", "price": 150.23}'
             # .decode('utf-8') → string: '{"symbol": "AAPL", "price": 150.23}'
             # json.loads() → Python dictionary: {"symbol": "AAPL", "price": 150.23}
-        
+
+
+
+        # Send raw json to Snowflake
+        cursor.execute(
+            """
+            INSERT INTO data_platform_db.raw.streamed_sales (raw_data, source_file)
+            VALUES (PARSE_JSON(%s), %s)
+            """,
+            (raw_json, msg.topic())
+        )
+
+
+        # Start process to send to s3. 
+        # Python decodes the message/event and stores it in the event_buffer
         event_buffer.append(records)
         
         # Check if the buffer window has elapsed
@@ -254,8 +290,10 @@ try:
 
             window_start = time.time()
 
+
 except Exception as e:
-    logger.exception(f"Operation failed at the parquet stage")
+    logger.exception(f"Streaming ingestion failed")
+
 
 finally:
     # flush remaining events on shutdown
