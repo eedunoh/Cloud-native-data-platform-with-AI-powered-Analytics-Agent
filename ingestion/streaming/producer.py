@@ -23,7 +23,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from ingestion.config import Config
+from ingestion.kafka_config import Config
 
 
 
@@ -34,21 +34,36 @@ dataset_url = Config.streaming_data_set
 # creating the producer object and connecting to kafka broker
 # 'bootstrap.servers' is just kafka term for the address of the broker
 
+
 # PLEASE READ THIS!!!
 
-# Initially, I ran the producer and consumer scripts directly on ec2 as part of the Ec2 user_data script bootstrap process. I used 'localhost:9092' as my 'bootstrap.servers'. 
-# This is means ec2 will connect to kafka on port 9092 as exposed/stated in the docker-compose file.
 
-# However, I made a change to run the producer and consumer scripts as service containers as part of kafka docker-compose file (production-like), so that they can start along with main Kafka and kafka-UI.
-# To effectively implement this change, I had to change the 'bootstrap.servers' from 'localhost:9092' TO 'kafka:29092'. I still retain 'localhost:9092' as the fallback server incase I run the script directly on ec2 in the future.
-# This means that since producer and consumer will now be running as service containers, they will communicate with kafka using the ports kafka exposed to other containers in the docker-compose file.
+# STAGE 1 — Direct EC2 execution (initial setup)
+# Initially, The producer & consumer scripts ran directly on the EC2 instance via the user-data bootstrap process. They connected to Kafka using localhost:9092, the port exposed by the Kafka container on the host.
 
-# To make it more dynamic, I will use the environment variable ('BOOTSTRAP_SERVERS') created in the docker-compose file for the producer container service. 
-# Please reference the producer service section in the kafka docker-compose file.
+# STAGE 2 — Docker‑compose (single EC2)
+# The producer & consumer were moved inside the same docker‑compose file as Kafka. To communicate container‑to‑container, the bootstrap server changed from 'localhost:9092' to 'kafka:29092' (the internal Docker network port).
+# localhost:9092 was kept as a fallback for running scripts directly on the EC2 host. The environment variable BOOTSTRAP_SERVERS was introduced so the container picks up the correct address without code changes.
 
-# The 'BOOTSTRAP_SERVERS' variable value: 'kafka:29092' will be the main server while 'localhost:9092' will be the fallback.
+# STAGE 3 — ECS (current)
+# The entire stack has been moved to AWS ECS EC2 tasks. Kafka is now a standalone service (AWS MSK) and the producer/consumer run as separate ECS tasks.
+# There is no shared docker‑compose network, so the old 'kafka:29092' no longer applies. Instead, the bootstrap server must point to the actual Kafka (AWS MSK) cluster bootstrap string
+# Note: Kafka UI is deployed as a task/service in ECS. AWS manages the broker only, since AWS MSK has no UI front.
 
-bootstrap_servers = os.getenv('BOOTSTRAP_SERVERS', Config.msk_bootsrap_server) 
+# To keep the configuration dynamic, I decided to keep the BOOTSTRAP_SERVERS environment variable and the fallback (Config.msk_bootstrap_server). 
+# This is retained for local development or other environments such as on docker-compose etc. This way the same Python code works across all environments without modification.
+
+# Summary of values:
+#  Docker‑compose on EC2  →  BOOTSTRAP_SERVERS environment variable = kafka:29092 (fallback localhost:9092)
+#  ECS production         →  BOOTSTRAP_SERVERS environment variable set by ECS task definition OR MSK msk_bootstrap_server
+
+
+# For reference: 
+# The primary source is the environment variable BOOTSTRAP_SERVERS environment variable. If that variable is not set (or is empty either in ECS task or docker-compose), the code falls back to Config.msk_bootstrap_server. 
+# So, Config.msk_bootstrap_server is the standby/fallback value. 
+# I designed it this way so I don't have to keep rebuilding the consumer container when the change cloud provider, switch environment or even change msk_bootstrap_server.
+
+bootstrap_servers = os.getenv('BOOTSTRAP_SERVERS', Config.msk_bootstrap_server)
 
 producer = Producer({
     'bootstrap.servers':bootstrap_servers
@@ -62,7 +77,9 @@ def delivery_report(err, msg):
     if err:
         print(f'Message Failed: {err}')
     else:
-        print(f'Message sent to topic [{msg.topic()}] at offset {msg.offset()}')
+        print(f'Message sent to topic [{msg.topic()}]')
+
+        # print(f'Message offset [{msg.offset()}')
 
 
 

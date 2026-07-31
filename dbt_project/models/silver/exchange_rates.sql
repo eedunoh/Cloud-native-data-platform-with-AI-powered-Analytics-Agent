@@ -9,9 +9,10 @@ WITH source AS (
 
 parsed AS (
     SELECT
-        record:"Date"::VARCHAR        AS date_text,
-        record:"Currency"::VARCHAR    AS currency,
-        record:"Exchange"::VARCHAR    AS exchange_text,
+        record:"date"::VARCHAR        AS date_text,
+        record:"currency"::VARCHAR    AS currency,
+        record:"exchange"::VARCHAR    AS exchange_text,
+        record:"updated_at"::VARCHAR  AS updated_at_text,
         source_file,
         ingested_at
     FROM source
@@ -20,10 +21,11 @@ parsed AS (
 SELECT
     TRY_TO_DATE(date_text, 'MM/DD/YYYY') AS date,                               
     currency,
-    CAST(REPLACE(exchange_text, '"', '') AS FLOAT) AS exchange, 
+    CAST(REPLACE(exchange_text, '"', '') AS FLOAT) AS exchange,
+    TRY_TO_TIMESTAMP(updated_at_text, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,   
     source_file,
     ingested_at
 FROM parsed
-QUALIFY ROW_NUMBER() OVER (PARTITION BY date, currency ORDER BY exchange DESC) = 1   -- Remove duplicates if they exist
+QUALIFY ROW_NUMBER() OVER (PARTITION BY date, currency ORDER BY updated_at DESC, ingested_at DESC) = 1   -- Remove duplicates if they exist
 ORDER BY date ASC, currency ASC
 

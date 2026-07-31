@@ -9,17 +9,17 @@ WITH source AS (
 
 parsed AS (
     SELECT
-        record:"ProductKey"::VARCHAR        AS product_id_text,
-        record:"Product Name"::VARCHAR      AS product_name,
-        record:"Brand"::VARCHAR             AS brand,
-        record:"Color"::VARCHAR             AS colour,
-        record:"CategoryKey"::VARCHAR       AS category_id_text,
-        record:"Category"::VARCHAR          AS category,
-        record:"SubcategoryKey"::VARCHAR    AS sub_category_id_text,
-        record:"Subcategory"::VARCHAR       AS sub_category,
-        record:"Unit Cost USD"::VARCHAR     AS unit_cost_in_usd_text,
-        record:"Unit Price USD"::VARCHAR    AS unit_price_in_usd_text,
-        record:"Updated at"::VARCHAR        AS updated_at_text,
+        record:"productkey"::VARCHAR        AS product_id_text,
+        record:"product name"::VARCHAR      AS product_name,
+        record:"brand"::VARCHAR             AS brand,
+        record:"color"::VARCHAR             AS colour,
+        record:"categorykey"::VARCHAR       AS category_id_text,
+        record:"category"::VARCHAR          AS category,
+        record:"subcategorykey"::VARCHAR    AS sub_category_id_text,
+        record:"subcategory"::VARCHAR       AS sub_category,
+        record:"unit cost usd"::VARCHAR     AS unit_cost_in_usd_text,
+        record:"unit price usd"::VARCHAR    AS unit_price_in_usd_text,
+        record:"updated_at"::VARCHAR        AS updated_at_text,
         source_file,
         ingested_at
     FROM source
@@ -37,7 +37,7 @@ SELECT
     sub_category,
     CAST(REPLACE(REPLACE(REPLACE(unit_cost_in_usd_text, '"', ''), '$', ''), ',', '') AS FLOAT) AS unit_cost_in_usd,       
     CAST(REPLACE(REPLACE(REPLACE(unit_price_in_usd_text, '"', ''), '$', ''), ',', '') AS FLOAT) AS unit_price_in_usd,
-    TRY_TO_TIMESTAMP(updated_at_text, 'MM/DD/YYYY HH24:MI:SS') AS updated_at,
+    TRY_TO_TIMESTAMP(updated_at_text, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,
     source_file,
     ingested_at
 FROM parsed

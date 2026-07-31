@@ -10,17 +10,17 @@ WITH source AS (
 
 parsed AS (
     SELECT
-        record:"CustomerKey"::VARCHAR       AS user_id_text,
-        record:"Name"::VARCHAR              AS user_name,
-        record:"Gender"::VARCHAR            AS gender,
-        record:"Birthday"::VARCHAR          AS date_of_birth_text,
-        record:"Continent"::VARCHAR         AS continent,
-        record:"Country"::VARCHAR           AS country,
-        record:"State"::VARCHAR             AS state,
-        record:"State Code"::VARCHAR        AS state_code,
-        record:"City"::VARCHAR              AS city,
-        record:"Zip Code"::VARCHAR          AS zip_code,
-        record:"Updated at"::VARCHAR        AS updated_at_text,
+        record:"customerkey"::VARCHAR       AS user_id_text,
+        record:"name"::VARCHAR              AS user_name,
+        record:"gender"::VARCHAR            AS gender,
+        record:"birthday"::VARCHAR          AS date_of_birth_text,
+        record:"continent"::VARCHAR         AS continent,
+        record:"country"::VARCHAR           AS country,
+        record:"state"::VARCHAR             AS state,
+        record:"state code"::VARCHAR        AS state_code,
+        record:"city"::VARCHAR              AS city,
+        record:"zip code"::VARCHAR          AS zip_code,
+        record:"updated_at"::VARCHAR        AS updated_at_text,
         source_file,
         ingested_at
     FROM source
@@ -38,7 +38,7 @@ SELECT
     state_code,
     city,
     zip_code,
-    TRY_TO_TIMESTAMP(updated_at_text, 'MM/DD/YYYY HH24:MI:SS') AS updated_at,   
+    TRY_TO_TIMESTAMP(updated_at_text, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,
     source_file,
     ingested_at
 FROM parsed

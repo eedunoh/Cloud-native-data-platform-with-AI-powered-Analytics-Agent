@@ -229,7 +229,7 @@ variable "ecs_tasks" {
 }
 
 variable "ec2_server_type" {
-  default     = "t3.medium"
+  default     = "t3.large"
   description = "server type"
   type        = string
 }
@@ -269,6 +269,7 @@ variable "airflow_db_username" {
   type        = string
 }
 
+# The passwrod used here are for testing, in a production environment, I will conceal it
 variable "airflow_db_password" {
   default     = "adminSuperUser1123"
   description = "airflow db password"
@@ -323,36 +324,55 @@ variable "mskafka_log_group_name" {
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+# Snowflake Variables
+
 # When you configure an auto-ingest Snowpipe, Snowflake automatically generates an (ONLY 1) Amazon SQS queue to handle file notifications for ALL PIPES
 # Because Snowflake provisions one dedicated SQS queue per region for your entire account, every automated Snowpipe created on stages in that same region will display the exact same notification channel ARN.
 # ALWAYS CONFIRM ALL OF THEM HAVE THE SAME ARN. DON'T ASSUME
 # Replace these ARN with your snowflake generated SQS ARN
 
+
+# Standard StreamPipe
 variable "snowflake_aws_regional_sqs_arn" {
-  default     = "arn:aws:sqs:eu-north-1:517178431299:sf-snowpipe-AIDAXQ2R4S5BZB34ZTGOL-0ZyQgQ756IP0JhXEIYvABA"
+  default     = "arn:aws:sqs:eu-north-1:008349342067:sf-snowpipe-AIDAQD4NI3FZ342HB7FJI-wXImCEFsBXykJjmvWYIGNw"
   description = "snowflake-AWS regional SQS arn"
   type        = string
 }
 
 variable "snowflake_storage_aws_iam_user_arn" {
-  default = "arn:aws:iam::517178431299:user/qq3n1000-s"
+  default     = "arn:aws:iam::008349342067:user/bytv1000-s"
   description = "Storage IAM user ARN to be attached to the snowflake IAM Role on AWS"
-  type = string
+  type        = string
 }
 
 variable "snowflake_storage_aws_external_id" {
-  default = "CT90895_SFCRole=4_wvxGQwBDYWV/YrdDOPj0baJwAMk="
+  default     = "RR04386_SFCRole=6_5dvQAUVMjeNRWVFrV+576mlOLuo="
   description = "Storage external ID attached to the snowflake IAM Role on AWS"
 }
 
-variable "snowflake_db_password" {
-  default = "dataBaseUser6654!&"
-  description = "Data Platform user password on Snowflake"
-  type = string
+
+
+# StreamPipe Streaming
+variable "snowflake_account" {
+  default     = "RYMWEUH-FL97006"
+  description = "Snowflake Account Identifier"
+  type        = string
 }
 
-variable "snowflake_account" {
-  default = "XQVJIAX-GB90152"
-  description = "Snowflake Account Identifier"
-  type = string
+variable "snowflake_database" {
+  default     = "data_platform_db"
+  description = "Snowflake database"
+  type        = string
+}
+
+variable "snowflake_db_user" {
+  default     = "kafka_streamer_user"
+  description = "Snowflake user with permission to load streaming data into raw stream table"
+  type        = string
+}
+
+variable "snowflake_streaming_pipe" {
+  default     = "KAFKA_PIPE"
+  description = "Snowpipe Streaming pipe for kafka"
+  type        = string
 }

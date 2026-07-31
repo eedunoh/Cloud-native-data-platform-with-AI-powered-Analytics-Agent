@@ -1,5 +1,6 @@
 snapshots:
   - name: core_customers
+    description: "A Type 2 SCD snapshot of the customers table to track historical changes."
     relation: ref('customers')
     config:
       schema: silver
@@ -11,11 +12,101 @@ snapshots:
       # Here is dbt documentation to explain this: https://docs.getdbt.com/docs/build/snapshots?version=2.0&name=Fusion
       strategy: timestamp
       updated_at: updated_at
+    columns:
+      - name: user_id
+        description: "The unique identifier assigned to each user."
+
+      - name: user_name
+        description: "The full legal name or display name of the user."
+
+      - name: gender
+        description: "The gender of the user."
+
+      - name: date_of_birth
+        description: "The date of birth of the user."
+
+      - name: continent
+        description: "The continent where the user is located."
+
+      - name: country
+        description: "The country where the user resides."
+
+      - name: state
+        description: "The full name of the state or province of the user's address."
+
+      - name: state_code
+        description: "The standardized abbreviation or ISO code representing the user's state or province."
+
+      - name: city
+        description: "The city of the user's address."
+
+      - name: zip_code
+        description: "The postal or zip code of the user's address."
+
+      - name: updated_at
+        description: "The timestamp indicating when the user's record was last modified on the raw table."
+
+      - name: source_file
+        description: "The name of the s3 bucket acting as the data source for the raw table - customers batch process."
+
+      - name: ingested_at
+        description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
+
+      - name: dbt_scd_id
+        description: "A unique MD5 hash string computed for each row version. It combines the configured unique_key and either the monitored change columns (in a check strategy) or the row state hash to uniquely identify a specific version of a record."
+
+      - name: dbt_updated_at
+        description: "It reflects the timestamp of the current dbt snapshot run execution that inserted or verified the row version."
+
+      - name: dbt_valid_from
+        description: "The timestamp indicating when this specific row version became active and effective."
+
+      - name: dbt_valid_to
+        description: "The timestamp indicating when this specific row version was superseded by a newer update. This field remains null for the currently active record."
+
+
 
   - name: core_stores
+    description: "A Type 2 SCD snapshot of the stores table to track historical changes."
     relation: ref('stores')
     config:
       schema: silver
       unique_key: store_id
       strategy: timestamp
       updated_at: updated_at
+    columns:
+      - name: store_id
+        description: "The unique identifier assigned to each store location."
+  
+      - name: open_date
+        description: "The date when the store location was officially opened for business."
+    
+      - name: country
+        description: "The country where the store is located."
+
+      - name: state
+        description: "The state or province where the store is located."
+
+      - name: square_meters
+        description: "The total physical footprint of the store, measured in square meters."
+
+      - name: updated_at
+        description: "The timestamp indicating when the store's record was last modified on the raw table."
+
+      - name: source_file
+        description: "The name of the s3 bucket acting as the data source for the raw table - stores batch process."
+
+      - name: ingested_at
+        description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
+
+      - name: dbt_scd_id
+        description: "A unique MD5 hash string computed for each row version. It combines the configured unique_key and either the monitored change columns (in a check strategy) or the row state hash to uniquely identify a specific version of a record."
+
+      - name: dbt_updated_at
+        description: "It reflects the timestamp of the current dbt snapshot run execution that inserted or verified the row version."
+
+      - name: dbt_valid_from
+        description: "The timestamp indicating when this specific row version became active and effective."
+
+      - name: dbt_valid_to
+        description: "The timestamp indicating when this specific row version was superseded by a newer update. This field remains null for the currently active record."

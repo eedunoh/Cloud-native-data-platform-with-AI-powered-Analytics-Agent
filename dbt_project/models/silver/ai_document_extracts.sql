@@ -13,7 +13,6 @@ parsed AS (
         record:"effective_date"::VARCHAR            AS effective_date_text,
         record:"summary"::VARCHAR                   AS summary,
         record:"key_rules"::VARCHAR                 AS key_rules,
-        record:"changes"::VARCHAR                   AS changes,
         record:"compliance_requirements"::VARCHAR   AS compliance_requirements,
         source_file,
         ingested_at
@@ -26,9 +25,9 @@ SELECT
     TRY_TO_DATE(effective_date_text, 'MM/DD/YYYY') AS effective_date,
     summary,
     key_rules,
-    changes,
     compliance_requirements,
     source_file,
     ingested_at
 FROM parsed
+QUALIFY ROW_NUMBER() OVER (PARTITION BY policy_name ORDER BY effective_date_text DESC, ingested_at DESC) = 1     -- Remove duplicate and select the most recent entry of a particular policy
 ORDER BY effective_date ASC

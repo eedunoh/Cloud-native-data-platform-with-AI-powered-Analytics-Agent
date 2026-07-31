@@ -5,20 +5,82 @@ sources:
     schema: raw
     tables:
       - name: streamed_sales
-        freshness: 
-          error_after:
-            count: 6
-            period: hour
-          warn_after:
-            count: 1
-            period: hour
-        loaded_at_field: streamed_at
+        description: "raw layer's kafka streamed sales/order transaction data"
+        columns:
+        - name: raw_data
+          description: "Kafka streamed raw orders data stored as JSON/Variant. More information about content in the silver.data_dictionary table"
+        - name: source_file
+          description: "The name of the source API/file that produced the raw data stream."
+        - name: ingested_at
+          description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
+        config: 
+          freshness:
+            error_after:
+              count: 6
+              period: hour
+            warn_after:
+              count: 1
+              period: hour
+          loaded_at_field: ingested_at
       - name: exchange_rates
+        description: "raw layer's exchange rates"
+        columns:
+        - name: raw_data
+          description: "Batch processed raw data stored as JSON/Variant. More information about content in the silver.data_dictionary table"
+        - name: source_file
+          description: "The name of the s3 bucket acting as the data source for the raw table."
+        - name: ingested_at
+          description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
+
       - name: data_dictionary
+        description: "raw layer's data dictionary"
+        columns:
+        - name: raw_data
+          description: "Batch processed raw data stored as JSON/Variant. More information about content in the silver.data_dictionary table"
+        - name: source_file
+          description: "The name of the s3 bucket acting as the data source for the raw table."
+        - name: ingested_at
+          description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
+
       - name: products
+        description: "raw layer's products data"
+        columns:
+        - name: raw_data
+          description: "Batch processed raw data stored as JSON/Variant. More information about content in the silver.data_dictionary table"
+        - name: source_file
+          description: "The name of the s3 bucket acting as the data source for the raw table."
+        - name: ingested_at
+          description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
+
       - name: customers
+        description: "raw layer's customers data"
+        columns:
+        - name: raw_data
+          description: "Batch processed raw data stored as JSON/Variant. More information about content in the silver.data_dictionary table"
+        - name: source_file
+          description: "The name of the s3 bucket acting as the data source for the raw table."
+        - name: ingested_at
+          description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
+
       - name: stores
+        description: "raw layer's stores data"
+        columns:
+        - name: raw_data
+          description: "Batch processed raw data stored as JSON/Variant. More information about content in the silver.data_dictionary table"
+        - name: source_file
+          description: "The name of the s3 bucket acting as the data source for the raw table."
+        - name: ingested_at
+          description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
+
       - name: ai_document_extracts
+        description: "raw layer's AI-extracted pdf data"
+        columns:
+        - name: raw_data
+          description: "Batch processed raw data stored as JSON/Variant. More information about content in the silver.data_dictionary table"
+        - name: source_file
+          description: "The name of the s3 bucket acting as the data source for the raw table."
+        - name: ingested_at
+          description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
 
 
 

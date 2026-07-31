@@ -1,15 +1,15 @@
 # import necessary libraries and modules
+from airflow.models import Variable
+import pandas as pd
+from datetime import datetime
 import anthropic
 import base64
 import json
 import os
-import glob
-from datetime import datetime
 import boto3
 import logging
 import sys
-import os
-from airflow.models import Variable
+
 
 
 
@@ -27,11 +27,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 # Import Config from the config.py. 
 # This is positioned here because we need to set the project root before importing config.py module
-from ingestion.config import Config
+from ingestion.airflow_config import Config
 
 
 # Define logger
 logger = logging.getLogger(__name__)
+
 
 
 # Define where to get anthropic API key
@@ -48,6 +49,8 @@ client = anthropic.Anthropic(
 source_bucket = Config.policy_document_bucket
 
 destination_bucket= Config.document_extract_bucket
+
+ai_extract_db_raw_table = Config.ai_extract_db_raw_table
 
 s3_client = boto3.client("s3", region_name=Config.aws_region)
 
@@ -92,13 +95,12 @@ def extract_policy(source_bucket: str, key: str) -> dict:
                             "type": "text",
                             "text": """Extract the following from this internal policy document 
                             and return ONLY a JSON object with no extra text. 
-                            I need brief/concise summary in the key_rules, changes and compliance_requirements section but capture all details:
+                            I need brief/concise summary in the key_rules and compliance_requirements section but capture all details:
                             {
                                 "policy_name": "name of the policy",
                                 "effective_date": "date if mentioned, use this format: 'MM/DD/YYYY' ",
                                 "summary": "2-3 sentence summary and it should effectively summarize the document. One should be able to know what the whole document is all about by just reading the summary",
                                 "key_rules": ["rule 1", "rule 2", "rule 3"],
-                                "changes": ["change 1", "change 2"],
                                 "compliance_requirements": ["requirement 1", "requirement 2"]
                             }"""
                         }
@@ -141,6 +143,7 @@ def extract_policy(source_bucket: str, key: str) -> dict:
 # Define a function to save the extracted information
 def save_extracted_data(extracted: dict, destination_bucket: str, key: str):
 
+
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
 
     # records is a dict, we need to convert to JSON so S3 can accept it
@@ -153,23 +156,23 @@ def save_extracted_data(extracted: dict, destination_bucket: str, key: str):
     # Seperating base_name from the extension
     base_name, ext = os.path.splitext(file_name_with_ext)    # Result: "document1"
     
-    Key = f"{base_name}_{timestamp}.json"
+    batch_key = f"{base_name}_{timestamp}.json"
 
-    # This will upload the raw data into S3
+    # This will upload the raw json data into S3 and Stops processing if S3 upload fails
     try:
         s3_client.put_object(
             Bucket=destination_bucket,
-            Key=Key,
+            Key=batch_key,
             Body=json_data,
             ContentType='application/json'
         )
-        logger.info(f"Successfully saved {Key} extracted data to {destination_bucket}")
-        print(f"Successfully saved {Key} extracted data to {destination_bucket}")
+        print(f"Successfully uploaded {batch_key} extracted data to {destination_bucket}")
 
-    except Exception as e:
-        logger.exception(f"Error uploading file {Key} to {destination_bucket}")
+    except Exception:
+        logger.exception(f"Error uploading file {batch_key} to {destination_bucket}")
+        raise
 
-    return Key
+    return batch_key
     
 
 
@@ -178,66 +181,70 @@ def save_extracted_data(extracted: dict, destination_bucket: str, key: str):
 
 def run():
 
+    # Old method: Checked if a file’s name already existed in the destination bucket. Once processed, a file with the same name was forever skipped, even if it was later modified and re‑uploaded.
+    # New method: Tracks the most recent LastModified timestamp of processed S3 objects using an Airflow Variable. On each run, only files with a LastModified greater than that watermark are extracted.
+    # Why transitioning: The old method misses updates when a PDF is replaced but keeps the same name. 
+    # The new method catches those modifications reliably, just like your incremental Google Sheets pipeline, ensuring the raw table always reflects the latest document content.
+
+    # Create a watermark variable. This will be used to store most recent updated_at during the last successful batch process.
+    WATERMARK_KEY = f"watermark_{ai_extract_db_raw_table}"
+
+    last_watermark_str = Variable.get(WATERMARK_KEY, default_var="1970-01-01T00:00:00+00:00")
+
+    last_watermark = pd.to_datetime(last_watermark_str, utc=True)
+
+
     # This will produce a dictionary containing the metadata of the pdfs in the source bucket
     source_dict = s3_client.list_objects_v2(Bucket=source_bucket)
 
+    # Guard against empty bucket
+    if 'Contents' not in source_dict:
+        print("No files in source bucket.")
+        return
 
-    # This will produce a dictionary containing the metadata of the pdfs in the destination bucket
-    destination_dict = s3_client.list_objects_v2(Bucket=destination_bucket)
 
-    # define empty sets to be used to store/match processed and unprocessed files. Sets are used because they are faster (instant) for checks compared to lists and do not allow duplicates.
-    processed_pdfs = set()
+    # Filter for files modified after the watermark
+    unprocessed = [obj for obj in source_dict['Contents'] if obj['LastModified'] > last_watermark]
 
-    unprocessed_pdfs = set()
 
-    if 'Contents' in destination_dict:
-        for obj in destination_dict['Contents']:
-            key = obj['Key']
+    # If unprocessed is empty. return None
+    if not unprocessed:
+        print("No new or modified PDFs since last run.")
+        return
 
-            # This generates the files base_name and extension without prefix (directory-like prefix)
-            file_name_with_ext = os.path.basename(key) 
 
-            # Seperating base_name from the extension
-            base_name, ext = os.path.splitext(file_name_with_ext)
+    # If not empty, print the number of unprocessed files found
+    print(f"Found {len(unprocessed)} files")
 
-            # OR (alternative to splitext)
-            # from pathlib import Path
-            # base_name = Path(os.path.basename(key)).stem  # "document1"
-            # ext = Path(os.path.basename(key)).suffix  # ".pdf"
 
-            processed_pdfs.add(base_name)
+    # Get the most recent LastModified date
+    new_watermark = max(obj['LastModified'] for obj in unprocessed)
 
-    
-    if 'Contents' in source_dict:
-        for obj in source_dict['Contents']:
-            key = obj['Key']
 
-            # This generates the files' base_name and extension without prefix (directory-like prefix)
-            file_name_with_ext = os.path.basename(key) 
+    # Start extraction and saving into S3
+    for obj in unprocessed:
+        key = obj['Key']
 
-            # Seperating base_name from the extension
-            base_name, ext = os.path.splitext(file_name_with_ext)
+        print(f"Starting document extraction for: {key}")
 
-            if base_name not in processed_pdfs:
-                unprocessed_pdfs.add(key)
+        # Extract PDF using Claude AI
+        extracted = extract_policy(source_bucket, key)
+        
+        # Save extracted JSON to S3
+        filename = save_extracted_data(extracted, destination_bucket, key)
 
-    print(f"Found {len(unprocessed_pdfs)} new unprocessed files.\n")
+        logger.info(f"Document extraction complete and saved. Output: {filename}")
+        print(f"Document extraction complete and saved. Output: {filename}")
 
-    if not unprocessed_pdfs:
-        print("No new PDFs to process. All documents are up to date.")
-    else:
-        for key in unprocessed_pdfs:
-            print(f"Starting document extraction for: {key}")
+    print()
+    print("All new PDF documents processed.")
 
-            extracted = extract_policy(source_bucket, key)
 
-            filename = save_extracted_data(extracted, destination_bucket, key)
-            
-            logger.info(f"Document extraction complete and saved. Output: {filename}")
-            print(f"Document extraction complete and saved. Output: {filename}")
+    # Set new watermark variable to store the max value of the updated_at in the filtered data frame
+    Variable.set(WATERMARK_KEY, new_watermark.isoformat())
 
-            print()
-        print("All new PDF documents processed.")
+    print(f"New watermark value has been set! \n\n")
+    logger.info("New watermark value has been set! \n\n")
 
 
 if __name__ == "__main__":

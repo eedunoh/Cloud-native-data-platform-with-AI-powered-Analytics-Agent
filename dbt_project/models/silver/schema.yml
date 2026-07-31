@@ -1,25 +1,45 @@
+# IMPORTANT
+# dbt’s "not_null" test runs a query like SELECT * FROM model WHERE column IS NULL. 
+# If the table is empty, this query returns zero rows, and the test passes because there are no rows with NULL values. 
+# It does not check whether the table has any data at all.
+
+
 version: 2
 
 models:
-  - name: streamed_sales 
+  - name: streamed_sales
+    description: "A real-time transaction table capturing incoming order streams ingested via Kafka. It acts as the operational entry point for individual line-item sales data."
     config:
       tags: ['silver']
       materialized: table
+      contract:
+        enforced: true
     columns:
       - name: order_id
+        description: "The unique identifier assigned to each individual order."
+
+        # Snowflake stores integer types (INT, INTEGER, BIGINT, etc.) internally as NUMBER(38,0). 
+        # Using NUMBER(38,0) in the contract matches the physical schema explicitly and avoids ambiguity.
+        # The contract’s data_type checks the table schema: it ensures the database column is exactly NUMBER (or number(38,0))
+        data_type: number(38,0)
         data_tests:
           - not_null
-          - dbt_expectations.expect_column_values_to_be_of_type:
-          # Snowflake doesn't have a pure INTEGER type; INT, INTEGER, BIGINT, etc., are all aliases for NUMBER with precision 38,0. So using INT in the variable below will throw an error.
-              column_type: number   
 
       - name: order_date
+        description: "The date indicating when the order was successfully placed."
+        data_type: date
         data_tests:
           - dbt_expectations.expect_column_values_to_be_between:
               max_value: 'current_date'       
               # The database engine (Snowflake, PostgreSQL, etc.) evaluates current_date at query time and compares it to the column. You don’t need to pre‑define anything in dbt.
 
+      - name: user_id
+        description: "The unique identifier of the customer who placed the order, acting as a foreign key derived from the customers table."
+        data_type: number(38,0)
+
       - name: currency_code
+        description: "Currency Codes used for each order. This correlates with the customer's or store's location and, in some cases like online purchases, the customer's preferred currency"
+        data_type: varchar
         data_tests:
           - accepted_values:
               values: ['AUD', 'CAD', 'EUR', 'GBP', 'USD']
@@ -27,17 +47,18 @@ models:
                 severity: warn
 
       - name: line_item
+        description: "The sequential number assigned to each item within an order, used to distinguish unique rows."
+        data_type: number(38,0)
         data_tests:
           - less_than_one
-
-      - name: delivery_date
-        data_tests: 
-          - conditional_not_null:
-              condition_column: store_id
-              operator: ">"
-              condition_value: 0
+      
+      - name: product_id
+        description: "The unique identifier assigned to the product variation, functioning like a unique SKU. Derived from the products table."
+        data_type: number(38,0)
 
       - name: quantity
+        description: "The number of units ordered for the product."
+        data_type: number(38,0)
         data_tests:
           - less_than_one
           - outlier_detection:
@@ -45,86 +66,304 @@ models:
               config:
                 severity: warn
 
+      - name: store_id
+        description: "The unique identifier of the store where the order was placed. Derived from the stores table"
+        data_type: number(38,0)
+
+      - name: delivery_date
+        description: "The scheduled or actual delivery date, which remains null for physical walk-in purchases."
+        data_type: date
+        data_tests: 
+          - conditional_not_null:
+              condition_column: store_id
+              operator: ">"
+              condition_value: 0
+
+      - name: streamed_at
+        description: "The timestamp indicating when the data was processed and moved by the Kafka consumer."
+        data_type: timestamp_ntz
+
+      - name: stream_row_index
+        description: "The sequential index number of the row within the data stream."
+        data_type: number(38,0)
+
+      - name: source_file
+        description: "The name of the source API/file that produced the data stream."
+        data_type: varchar
+
+      - name: source_name
+        description: "The name of the Kafka topic from which the data was consumed."
+        data_type: varchar
+
+      - name: ingested_at
+        description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
+        data_type: timestamp_ntz
+
+
 
   - name: exchange_rates 
+    description: "A historical reference dataset tracking daily currency conversion rates relative to the US Dollar (USD)"
     config:
       tags: ['silver']
       materialized: table
     columns:
+      - name: date
+        description: "The specific date for which the exchange rate is effective."
+        
       - name: currency
+        description: "The code of the foreign currency being converted."
         data_tests:
           - accepted_values:
               values: ['AUD', 'CAD', 'EUR', 'GBP', 'USD']
               config:
                 severity: warn
 
+      - name: exchange
+        description: "The exchange rate of the currency on that specific day, relative to the US Dollar (USD)."
+
+      - name: updated_at
+        description: "The timestamp indicating when the raw exchange rate record was last modified."
   
-  - name: data_dictionary 
+      - name: source_file
+        description: "The name of the s3 bucket acting as the data source for the raw table - exchange_rate batch process."
+
+      - name: ingested_at
+        description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
+  
+
+  - name: data_dictionary
+    description: "A table capturing the raw layer's structural blueprint used to track source column mappings and schema drift before data transitions into the Silver layer."
     config:
       tags: ['silver']
       materialized: table
+    columns:
+      - name: source_file
+        description: "The name of the raw data table."
+
+      - name: field
+        description: "The original column name in the raw table. Note that these names may be refactored in the Silver layer schema to improve clarity and readability."
+  
+      - name: description
+        description: "A detailed explanation of the column's purpose and contents in the raw table."
+
+      - name: updated_at
+        description: "The timestamp indicating when the raw data dictionary record was last modified."
+
+      - name: source_file
+        description: "The name of the s3 bucket acting as the data source for the raw table - data_dictionary batch process."
+
+      - name: ingested_at
+        description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
 
 
   - name: products
+    description: "The master product catalog tracking individual variations and SKUs."
     config:
       tags: ['silver']
       materialized: table
+      contract:
+        enforced: true
     columns:
       - name: product_id
+        description: "The unique identifier assigned to the product variation, functioning like a unique SKU."
+        data_type: number(38,0)
         data_tests:
           - not_null
           - unique
-          - dbt_expectations.expect_column_values_to_be_of_type:
-              column_type: number
     
+      - name: product_name
+        description: "The descriptive name of the product (e.g., 'Contoso 2G MP3 Player E200 Red')."
+        data_type: varchar
+
+      - name: brand
+        description: "The brand or manufacturer name of the product (e.g., 'Contoso')."
+        data_type: varchar
+
+      - name: colour
+        description: "The color of the product (e.g., 'Red')."
+        data_type: varchar
+
+      - name: category_id
+        description: "The unique key used to identify the product category."
+        data_type: number(38,0)
+
+      - name: category
+        description: "The name of the high-level product category (e.g., 'Audio', 'TV and Video')."
+        data_type: varchar
+
+      - name: sub_category_id
+        description: "The unique key used to identify the product subcategory."
+        data_type: number(38,0)
+
+      - name: sub_category
+        description: "The name of the specific product subcategory (e.g., 'MP4 & MP3', 'Televisions')."
+        data_type: varchar
+
+      - name: unit_cost_in_usd
+        description: "The production cost per unit of the product, denominated in US Dollars (USD)."
+        data_type: float
+
+      - name: unit_price_in_usd
+        description: "The standard list price or retail price per unit of the product, denominated in US Dollars (USD)."
+        data_type: float
+
+      - name: updated_at
+        description: "The timestamp indicating when the product's record was last modified."
+        data_type: timestamp_ntz
+
+      - name: source_file
+        description: "The name of the s3 bucket acting as the data source for the raw table - products batch process."
+        data_type: varchar
+
+      - name: ingested_at
+        description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
+        data_type: timestamp_ntz
+
+
 
   - name: customers
+    description: "The cleaned master table containing regional demographic and profile attributes for all registered users."
     config:
       tags: ['silver']
       materialized: table
+      contract:
+        enforced: true
     columns:
       - name: user_id
+        description: "The unique identifier assigned to each user."
+        data_type: number(38,0)
         data_tests:
           - not_null
           - unique
-          - dbt_expectations.expect_column_values_to_be_of_type:
-              column_type: number
+
+      - name: user_name
+        description: "The full legal name or display name of the user."
+        data_type: varchar
+
+      - name: gender
+        description: "The gender of the user."
+        data_type: varchar
+
+      - name: date_of_birth
+        description: "The date of birth of the user."
+        data_type: date
+
+      - name: continent
+        description: "The continent where the user is located."
+        data_type: varchar
 
       - name: country
+        description: "The country where the user resides."
+        data_type: varchar
         data_tests:
           - accepted_values:
               values: ['Online', 'Australia', 'Canada', 'France', 'Germany', 'Italy', 'Netherlands', 'United Kingdom', 'United States']
               config:
                 severity: warn
+
+      - name: state
+        description: "The full name of the state or province of the user's address."
+        data_type: varchar
+
+      - name: state_code
+        description: "The standardized abbreviation or ISO code representing the user's state or province."
+        data_type: varchar
+
+      - name: city
+        description: "The city of the user's address."
+        data_type: varchar
+
+      - name: zip_code
+        description: "The postal or zip code of the user's address."
+        data_type: varchar
+
+      - name: updated_at
+        description: "The timestamp indicating when the user's record was last modified."
+        data_type: timestamp_ntz
+
+      - name: source_file
+        description: "The name of the s3 bucket acting as the data source for the raw table - customers batch process."
+        data_type: varchar
+
+      - name: ingested_at
+        description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
+        data_type: timestamp_ntz
+
 
 
   - name: stores
+    description: "The master table of all retail locations, including structural attributes like physical footprint size and operational open dates."
     config:
       tags: ['silver']
       materialized: table
+      contract:
+        enforced: true
     columns:
       - name: store_id
+        description: "The unique identifier assigned to each store location."
+        data_type: number(38,0)
         data_tests:
           - not_null
           - unique
-          - dbt_expectations.expect_column_values_to_be_of_type:
-              column_type: number
+  
+      - name: open_date
+        description: "The date when the store location was officially opened for business."
+        data_type: date
     
       - name: country
+        description: "The country where the store is located."
+        data_type: varchar
         data_tests:
           - accepted_values:
               values: ['Online', 'Australia', 'Canada', 'France', 'Germany', 'Italy', 'Netherlands', 'United Kingdom', 'United States']
               config:
                 severity: warn
 
+      - name: state
+        description: "The state or province where the store is located."
+        data_type: varchar
 
-  # - name: ai_document_extracts
-  #   config:
-  #     tags: ['silver']
-  #     materialized: table
-  #   columns:
-  #     - name: effective_date
-  #       data_tests:
-  #         - not_null
-  #         - is_valid_date_format:
-  #             date_format: 'MM/DD/YYYY'
+      - name: square_meters
+        description: "The total physical footprint of the store, measured in square meters."
+        data_type: number(38,0)
+
+      - name: updated_at
+        description: "The timestamp indicating when the store's record was last modified."
+        data_type: timestamp_ntz
+
+      - name: source_file
+        description: "The name of the s3 bucket acting as the data source for the raw table - stores batch process."
+        data_type: varchar
+
+      - name: ingested_at
+        description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."
+        data_type: timestamp_ntz
+    
+
+
+  - name: ai_document_extracts
+    description: "A specialized repository tracking AI-extracted pdf data containing internal corporate mandates, compliance metrics and policy summaries."
+    config:
+      tags: ['silver']
+      materialized: table
+    columns:
+      - name: policy_name
+        description: "The official name of the internal corporate policy."
+
+      - name: effective_date
+        description: "The date on which the policy officially becomes active and enforceable."
+
+      - name: summary
+        description: "A concise overview highlighting the core purpose and key points of the policy."
+
+      - name: key_rules
+        description: "The primary regulations, mandates, and operational guidelines established by the policy."
+
+      - name: compliance_requirements
+        description: "The specific actions, procedures, or standards employees and departments must follow to adhere to the policy."
+
+      - name: source_file
+        description: "The name of the s3 bucket acting as the data source for the raw table - ai_document_extracts batch process."
+
+      - name: ingested_at
+        description: "The timestamp indicating when the data was successfully loaded into the Snowflake data warehouse."

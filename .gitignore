@@ -35,5 +35,6 @@ logs
 package-lock.yml
 
 # docker-compose and its associated dockerfile isn't used in the latest iteration of this project
-bare_ec2_deprecated_airflow_docker_files
-bare_ec2_deprecated_kafka_docker_files
+deprecated_ingestor_scripts_using_direct_snowflake_insert
+deprecated_bare_ec2_airflow_docker_files
+deprecated_bare_ec2_kafka_docker_files

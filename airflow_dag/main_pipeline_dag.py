@@ -27,7 +27,7 @@ from ingestion.documents.doc_extractor import run as run_doc_extractor
 
 # Import config. 
 # Config stores some SSM parameters like bucket names. e.g dbt_docs s3 bucket which will be used to host the static website for dbt docs 
-from ingestion.config import Config
+from ingestion.airflow_config import Config
 
 
 # Next, define dbt_docs s3 bucket, dbt_project and dbt_profile folders.
@@ -58,7 +58,7 @@ with DAG(
     dag_id='main_pipeline_dag',
     default_args=default_args,
     description='Main_dataplatform_airflow_pipeline',
-    schedule_interval=timedelta(minutes=15),
+    schedule_interval=timedelta(minutes=30),
     catchup=False,
     tags=['data_platform']
 ) as dag:
@@ -105,7 +105,11 @@ with DAG(
         env = {
             **environ,
             'DB_ACCOUNT': '{{ var.value.DB_ACCOUNT }}',
-            'DB_PASSWORD': '{{ var.value.DB_PASSWORD }}'
+            'DATABASE': '{{ var.value.DATABASE }}',
+            'DB_ROLE': '{{ var.value.DB_ROLE }}',
+            'DB_USER_PASSWORD': '{{ var.value.DB_USER_PASSWORD }}',
+            'DB_USER': '{{ var.value.DB_USER }}',
+            'DB_WAREHOUSE': '{{ var.value.DB_WAREHOUSE }}'
 
         },
 
@@ -123,13 +127,16 @@ with DAG(
         env = {
             **environ,
             'DB_ACCOUNT': '{{ var.value.DB_ACCOUNT }}',
-            'DB_PASSWORD': '{{ var.value.DB_PASSWORD }}'
-
+            'DATABASE': '{{ var.value.DATABASE }}',
+            'DB_ROLE': '{{ var.value.DB_ROLE }}',
+            'DB_USER_PASSWORD': '{{ var.value.DB_USER_PASSWORD }}',
+            'DB_USER': '{{ var.value.DB_USER }}',
+            'DB_WAREHOUSE': '{{ var.value.DB_WAREHOUSE }}'
         },
 
         bash_command = (
             f"dbt docs generate --target prod --profiles-dir {DBT_PROFILE_DIR} --project-dir {DBT_PROJECT_DIR} && "
-            f"aws s3 cp {DBT_PROJECT_DIR}/target/ {DBT_DOCS_S3_BUCKET} --recursive"
+            f"aws s3 cp {DBT_PROJECT_DIR}/target/ s3://{DBT_DOCS_S3_BUCKET} --recursive"
         )
     )
 

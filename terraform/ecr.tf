@@ -52,7 +52,7 @@ resource "aws_ecr_repository" "kafka_consumer_repository" {
 
 # Output
 
-output "airflow_init_repo_url" {
+output "airflow_repo_url" {
   value = aws_ecr_repository.airflow_repository.repository_url
 }
 

@@ -23,6 +23,11 @@ resource "aws_iam_role_policy_attachment" "ecs_ec2_policy_attachment" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
 }
 
+# This policy enables us to ssh into a private instance via SSM Session Manager
+resource "aws_iam_role_policy_attachment" "ssm" {
+  role       = aws_iam_role.data_platform_ecs_ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
 
 # Generate the instance profile for the ecs node using the 
 resource "aws_iam_instance_profile" "data_platform_instance_profile" {
@@ -180,6 +185,15 @@ resource "aws_iam_policy" "kafka_utilities_iam_policy" {
         Resource = ["arn:aws:ssm:${var.region}:*:parameter/*"]
       },
 
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = ["arn:aws:secretsmanager:${var.region}:*:secret:*"]
+      }
+
     ]
   })
 }
@@ -189,6 +203,7 @@ resource "aws_iam_role_policy_attachment" "kafka_utilities_task_policy_attachmen
   role       = aws_iam_role.kafka_utilities_task_role.name
   policy_arn = aws_iam_policy.kafka_utilities_iam_policy.arn
 }
+
 
 
 
@@ -250,6 +265,7 @@ resource "aws_iam_role_policy_attachment" "snowflake_policy_attachment" {
   role       = aws_iam_role.snowflake_iam_role.name
   policy_arn = aws_iam_policy.snowflake_iam_policy.arn
 }
+
 
 
 

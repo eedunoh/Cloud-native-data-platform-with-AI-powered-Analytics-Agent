@@ -6,12 +6,12 @@ data_platform:
   outputs:
     prod:
       account: "{{ env_var('DB_ACCOUNT') }}"
-      database: data_platform_db
-      password: "{{ env_var('DB_PASSWORD') }}"
-      role: data_platform_role
+      database: "{{ env_var('DATABASE') }}"
+      password: "{{ env_var('DB_USER_PASSWORD') }}"
+      role: "{{ env_var('DB_ROLE') }}"
       schema: silver
       threads: 8
       type: snowflake
-      user: data_platform_user
-      warehouse: data_platform_wh
+      user: "{{ env_var('DB_USER') }}"
+      warehouse: "{{ env_var('DB_WAREHOUSE') }}"
   target: prod

@@ -2,36 +2,257 @@ version: 2
 
 models:
   - name: agg_revenue
+    description: "A daily time-series analytics model tracking revenue performance through chronological sales velocity, active customer counts, cohort growth trends, rolling 7-day revenue aggregates, and top regional performance indicators."
     config:
       schema: gold
       tags: ['gold']
       materialized: table
+    columns:
+      - name: period
+        description: "The specific calendar date representing the aggregation interval for the daily metrics."
+
+      - name: total_active_users
+        description: "The total number of unique, distinct customers who placed at least one order on this day."
+
+      - name: total_new_buyers
+        description: "The count of unique customers who made their first-ever lifetime purchase on this day."
+
+      - name: total_returning_buyers
+        description: "The count of unique customers who placed an order on this day and had already made a previous purchase in the past."
+
+      - name: total_products_sold
+        description: "The total number of individual product units sold across all transactions on this day."
+
+      - name: total_revenue_in_usd
+        description: "The daily net revenue (total price - total product cost) generated across all store locations, aggregated in US Dollars (USD)."
+
+      - name: pct_change_in_daily_revenue
+        description: "The percentage variance in daily net revenue compared directly to the previous day's net revenue."
+
+      - name: cumulative_revenue_last_7_days
+        description: "A rolling 7-day total of net revenue, calculating the sum of the current day and the preceding six days in US Dollars (USD)."
+
+      - name: top_country_by_revenue
+        description: "The name of the country whose store locations generated the highest total net revenue on this day."
+        
+      - name: top_selling_product_by_order
+        description: "The name of the product that accumulated the highest volume of individual units sold on this day."
+
+      - name: top_selling_product_by_revenue
+        description: "The name of the product that generated the highest total net revenue on this day."
 
 
   - name: customer_360 
+    description: "A comprehensive user-centric analytics mart aggregating lifetime purchase volume, gross margins, behavioral recency, profile update frequencies, and semi-structured product portfolios."
     config:
       schema: gold
       tags: ['gold']
       materialized: table
+    columns:
+      - name: user_id
+        description: "The unique identifier assigned to the user."
 
+      - name: profile_modification_count
+        description: "The total number of times the user updated their profile details, excluding the initial account creation record."
+
+      - name: user_name
+        description: "The full legal name or display name of the user."
+
+      - name: gender
+        description: "The gender of the user."
+
+      - name: date_of_birth
+        description: "The date of birth of the user."
+
+      - name: continent
+        description: "The continent where the user is located."
+
+      - name: country
+        description: "The country where the user resides." 
+
+      - name: state
+        description: "The state or province of the user's address."
+
+      - name: city
+        description: "The city of the user's address."
+        
+      - name: unique_product_count
+        description: "A semi-structured JSON/variant object mapping each unique product name purchased by the user to its total ordered quantity."
+
+      - name: total_products_ordered
+        description: "The lifetime total number of individual product units ordered by the user."
+
+      - name: total_order_value
+        description: "The lifetime total gross monetary value of all purchases made by the user, calculated in US Dollars (USD)."
+
+      - name: average_order_price
+        description: "The average gross price paid per product unit across all of the user's lifetime orders, calculated in US Dollars (USD)."
+
+      - name: net_revenue_on_user
+        description: "The lifetime net profit margins generated from the user's transactions (total retail price - total product cost), calculated in US Dollars (USD)."
+
+      - name: first_purchase_date
+        description: "The calendar date on which the user placed their very first order."
+
+      - name: most_recent_purchase_date
+        description: "The calendar date on which the user placed their most recent order."
+
+      - name: days_since_last_purchase
+        description: "The calculated number of days elapsed between the user's most recent purchase date and the current system date."
+
+      
   
   - name: agg_store_stats 
+    description: "A location-centric business intelligence model summarizing lifetime retail footprint metrics, localized financial margins, distinct regional reach, and top-performing products by both volume and profitability."
     config:
       schema: gold
       tags: ['gold']
       materialized: table
+    columns:
+      - name: store_id
+        description: "The unique identifier assigned to each store location."
+
+      - name: open_date
+        description: "The date when the store location was officially opened for business."
+
+      - name: country
+        description: "The country where the store is located."
+
+      - name: state
+        description: "The state or province where the store is located."
+
+      - name: square_meters
+        description: "The total physical footprint of the store, measured in square meters."
+
+      - name: total_unique_buyers
+        description: "The lifetime count of unique/distinct customers who have made a purchase at this store."
+
+      - name: total_products_sold
+        description: "The lifetime total number of individual product units sold by the store across all transactions."
+
+      - name: total_revenue_in_local_currency
+        description: "The lifetime net revenue generated by the store, calculated and aggregated in the local transaction currency."
+
+      - name: total_revenue_in_usd
+        description: "The lifetime net revenue generated by the store, converted and aggregated in US Dollars (USD)."
+        
+      - name: top_selling_product_by_order
+        description: "The name of the product that has accumulated the highest number of individual units sold at this store location."
+
+      - name: top_selling_product_by_revenue
+        description: "The name of the product that has generated the highest net revenue (total price minus total cost) for this store location."
+
 
 
   - name: agg_product_stats
+    description: "A product-centric analytics model that summarizes long-term retail presence, regional margins, market reach, and peak product performance."
     config:
       schema: gold
       tags: ['gold']
       materialized: table
-    
+    columns:
+      - name: product_id
+        description: "The unique identifier assigned to the product variation, functioning like a unique SKU."
+
+      - name: sub_category
+        description: "The name of the specific product subcategory (e.g., 'MP4 & MP3', 'Televisions')."
+
+      - name: brand
+        description: "The brand or manufacturer name of the product (e.g., 'Contoso')."
+
+      - name: product_name
+        description: "The descriptive name of the product (e.g., 'Contoso 2G MP3 Player E200 Red')."
+
+      - name: unit_cost_in_usd
+        description: "The production cost per unit for this specific product ID, denominated in US Dollars (USD)."
+
+      - name: unit_price_in_usd
+        description: "The standard list price or retail price per unit for this specific product ID, denominated in US Dollars (USD)."
+
+      - name: total_unique_buyers
+        description: "The lifetime count of unique/distinct customers who have purchased this specific product variation."
+
+      - name: total_sold
+        description: "The lifetime total number of individual product units sold across all transactions."
+
+      - name: total_cost_in_usd
+        description: "The lifetime accumulated cost to produce all sold units of this product, calculated in US Dollars (USD)."
+        
+      - name: total_price_in_usd
+        description: "The lifetime gross sales revenue generated by this product before cost deductions, calculated in US Dollars (USD)."
+
+      - name: total_revenue_in_usd
+        description: "The lifetime net revenue (total price - total cost) generated by this product, calculated in US Dollars (USD)."
+
+      - name: top_purchase_country
+        description: "The country that has recorded the highest volume of individual units sold for this specific product variant."
+
+
 
   - name: sales_line_stats
+    description: "An enriched transaction table that transforms raw sales lines into analytical records by computing chronological order ranks, identifying customer retention tiers, and establishing local currency values."
     config:
       schema: gold
       tags: ['gold']
       materialized: table
+    columns:
+      - name: user_id
+        description: "The unique identifier of the customer who placed the order."
+
+      - name: order_id
+        description: "The unique identifier assigned to the transaction."
+
+      - name: order_date
+        description: "The calendar date on which the purchase transaction occurred."
+
+      - name: customer_type
+        description: "The classification of the buyer based on transaction history, labeled as 'first_time_buyer' for their initial order or 'returning_buyer' for subsequent orders."
+
+      - name: line_item
+        description: "The sequential row or sequence number identifying the specific product line within the order."
+
+      - name: product_id
+        description: "The unique identifier assigned to the product variation, functioning like a unique SKU."
+
+      - name: product_name
+        description: "The descriptive name of the product (e.g., 'Contoso 2G MP3 Player E200 Red')."
+
+      - name: quantity
+        description: "The total number of units purchased for this specific line item."
+
+      - name: store_id
+        description: "The unique identifier of the retail store or fulfillment channel."
+        
+      - name: store_location
+        description: "The country where the physical store is situated."
+
+      - name: is_walk_in_purchase
+        description: "A flag indicating whether the transaction was an in-store pickup/walk-in purchase ('True') or an online/delivery order ('False')."
+
+      - name: delivery_date
+        description: "The scheduled or actual delivery date, which remains null for physical walk-in purchases."
+
+      - name: unit_cost_in_usd
+        description: "The production cost per unit of the product, denominated in US Dollars (USD)."
+
+      - name: unit_price_in_usd
+        description: "The standard list price or retail price per unit of the product, denominated in US Dollars (USD)."
+
+      - name: total_cost_in_usd
+        description: "The total cost to produce the total quantity of items, calculated in US Dollars."
+
+      - name: total_price_in_usd
+        description: "The gross sales price for the total quantity of items, calculated in US Dollars."
+
+      - name: revenue_in_usd
+        description: "The gross profit generated from the line item (total price minus total cost), calculated in US Dollars."
+
+      - name: currency_code
+        description: "The standard currency code used by the customer or local store for the transaction."
+
+      - name: exchange_rate_to_dollar
+        description: "The conversion rate used to translate the local transaction currency value relative to the US Dollar on that specific day."
+
+      - name: total_price_in_local_currency
+        description: "The final transaction amount calculated in the customer's localized currency."
 

@@ -27,21 +27,11 @@ resource "aws_s3_bucket" "dbt_docs" {
 
 
 
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Create S3 Event notifications
 # Because Snowflake provisions one dedicated SQS queue per region for your entire account, every automated Snowpipe created on stages in that same region will display the exact same notification channel ARN.
 # These S3 notification blocks could be made dynamic, But I'll stick to grasping the basic concept of bucket and prefix level notifications for now
-
-resource "aws_s3_bucket_notification" "sales_streaming_notification" {
-  bucket = aws_s3_bucket.streaming_bucket.id
-
-  queue {
-    queue_arn = var.snowflake_aws_regional_sqs_arn
-    events    = ["s3:ObjectCreated:*"]
-  }
-}
-
 
 resource "aws_s3_bucket_notification" "document_extracts_notification" {
   bucket = aws_s3_bucket.document_extract_bucket.id
@@ -59,34 +49,89 @@ resource "aws_s3_bucket_notification" "batch_tables_notification" {
   queue {
     queue_arn     = var.snowflake_aws_regional_sqs_arn
     events        = ["s3:ObjectCreated:*"]
-    filter_prefix = "stores/"
+    filter_prefix = "data_platform_db.raw.stores/"
   }
 
   queue {
     queue_arn     = var.snowflake_aws_regional_sqs_arn
     events        = ["s3:ObjectCreated:*"]
-    filter_prefix = "products/"
+    filter_prefix = "data_platform_db.raw.products/"
   }
 
   queue {
     queue_arn     = var.snowflake_aws_regional_sqs_arn
     events        = ["s3:ObjectCreated:*"]
-    filter_prefix = "exchange_rates/"
+    filter_prefix = "data_platform_db.raw.exchange_rates/"
   }
 
   queue {
     queue_arn     = var.snowflake_aws_regional_sqs_arn
     events        = ["s3:ObjectCreated:*"]
-    filter_prefix = "customers/"
+    filter_prefix = "data_platform_db.raw.customers/"
   }
 
   queue {
     queue_arn     = var.snowflake_aws_regional_sqs_arn
     events        = ["s3:ObjectCreated:*"]
-    filter_prefix = "data_dictionary/"
+    filter_prefix = "data_platform_db.raw.data_dictionary/"
   }
 
 }
+
+
+
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# I will define lifecycle rules for each bucket to transition object after a given period
+# Note: I will only add the lifecycle policies to buckets that store the batch processed/streaming data for Disaster recovery NOT the every day bucket e.g dbt_docs and internal_policy_upload buckets
+
+resource "aws_s3_bucket_lifecycle_configuration" "streaming_bucket_lifecycle" {
+  bucket = aws_s3_bucket.streaming_bucket.id
+
+  rule {
+    id     = "move-to-glacier-after-30-days"
+    status = "Enabled"
+    filter {}
+
+    transition {
+      days          = 30
+      storage_class = "GLACIER_IR"
+    }
+  }
+}
+
+
+resource "aws_s3_bucket_lifecycle_configuration" "batch_bucket_lifecycle" {
+  bucket = aws_s3_bucket.batch_bucket.id
+
+  rule {
+    id     = "move-to-glacier-after-30-days"
+    status = "Enabled"
+    filter {}
+
+    transition {
+      days          = 30
+      storage_class = "GLACIER_IR"
+    }
+  }
+}
+
+
+resource "aws_s3_bucket_lifecycle_configuration" "document_extract_bucket_lifecycle" {
+  bucket = aws_s3_bucket.document_extract_bucket.id
+
+  rule {
+    id     = "move-to-glacier-after-30-days"
+    status = "Enabled"
+    filter {}
+
+    transition {
+      days          = 30
+      storage_class = "GLACIER_IR"
+    }
+  }
+}
+
 
 
 

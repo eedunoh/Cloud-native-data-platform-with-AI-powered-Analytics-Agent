@@ -10,12 +10,12 @@ WITH source AS (
 
 parsed AS (
     SELECT
-        record:"StoreKey"::INT          AS store_id,
-        record:"Open Date"::VARCHAR     AS open_date_text,
-        record:"Country"::VARCHAR       AS country,
-        record:"State"::VARCHAR         AS state,
-        record:"Square Meters"::VARCHAR AS square_meters_text,
-        record:"Updated at"::VARCHAR    AS updated_at_text,
+        record:"storekey"::INT          AS store_id,
+        record:"open date"::VARCHAR     AS open_date_text,
+        record:"country"::VARCHAR       AS country,
+        record:"state"::VARCHAR         AS state,
+        record:"square meters"::VARCHAR AS square_meters_text,
+        record:"updated_at"::VARCHAR    AS updated_at_text,
         source_file,
         ingested_at
     FROM source
@@ -27,9 +27,9 @@ SELECT
     country,
     state,
     TRY_TO_NUMBER(REPLACE(square_meters_text, '"', ''))::INT AS square_meters, 
-    TRY_TO_TIMESTAMP(updated_at_text, 'MM/DD/YYYY HH24:MI:SS') AS updated_at,  
+    TRY_TO_TIMESTAMP(updated_at_text, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,  
     source_file,
     ingested_at
 FROM parsed
-QUALIFY ROW_NUMBER() OVER (PARTITION BY store_id ORDER BY updated_at DESC, ingested_at DESC) = 1     -- Remove duplicate and select the most recent entry of a particular product/brand
+QUALIFY ROW_NUMBER() OVER (PARTITION BY store_id ORDER BY updated_at DESC, ingested_at DESC) = 1     -- Remove duplicate and select the most recent entry of a particular store
 ORDER BY store_id ASC

@@ -237,7 +237,7 @@ resource "aws_security_group" "launch_template_sg" {
 # Output
 
 output "airflow_security_group_id" {
-  value = aws_security_group.airflow_sg.name
+  value = aws_security_group.airflow_sg.id
 }
 
 output "airflow_rds_security_group_id" {

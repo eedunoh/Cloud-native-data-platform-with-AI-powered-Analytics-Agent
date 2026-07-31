@@ -50,9 +50,9 @@ resource "aws_autoscaling_group" "data_platform_asg" {
 
   # containers will be deployed in the private subnet 
   vpc_zone_identifier = aws_subnet.private[*].id
-  desired_capacity    = 1
+  desired_capacity    = 2
   max_size            = 3
-  min_size            = 1
+  min_size            = 2
 
   launch_template {
     id      = aws_launch_template.data_platform_lt.id
@@ -61,6 +61,47 @@ resource "aws_autoscaling_group" "data_platform_asg" {
 
   force_delete = true
 }
+
+
+
+
+# TROUBLESHOOTING
+# The ECS capacity provider automatically created a lifecycle hook (ecs-managed-draining-termination-hook) on your Auto Scaling Group with a 1‑hour heartbeat timeout, causing every instance termination (scale‑in, destroy) to be stuck in Terminating:Wait for up to 60 minutes.
+# This also caused ASG termination to take unnessary long (up to an hour)
+# This happened even though managed_termination_protection was disabled; the hook persisted from the capacity provider’s association.
+# The permanent fix is to manage that hook explicitly in Terraform with heartbeat_timeout = 30 seconds and default_result = "CONTINUE".
+# Once applied, Terraform owns the hook and enforces the 30‑second timeout, eliminating the long termination delays permanently, with no further manual intervention needed.
+
+
+resource "aws_autoscaling_lifecycle_hook" "ecs_draining" {
+  name                   = "ecs-managed-draining-termination-hook"
+  autoscaling_group_name = aws_autoscaling_group.data_platform_asg.name
+  lifecycle_transition   = "autoscaling:EC2_INSTANCE_TERMINATING"
+  heartbeat_timeout      = 30 # 30 seconds
+  default_result         = "CONTINUE"
+}
+
+
+
+# Note you can also manually delete the hook using these codes: 
+
+# 1. First run these to check the if there are instances with Terminating:Wait
+# aws autoscaling describe-auto-scaling-instances \
+#   --region eu-north-1 \
+#   --query 'AutoScalingInstances[?AutoScalingGroupName==`data_platform_asg`].[InstanceId,LifecycleState,ProtectedFromScaleIn]' \
+#   --output table 
+
+# 2. Run this to be sure you have an active lifecycle hook
+# aws autoscaling describe-lifecycle-hooks \
+#   --auto-scaling-group-name data_platform_asg \
+#   --region eu-north-1
+
+# 3. Finally, RUN this to delete the hook. This will terminate the instance immediately and free the ASG
+# aws autoscaling delete-lifecycle-hook \
+#   --auto-scaling-group-name data_platform_asg \
+#   --lifecycle-hook-name ecs-managed-draining-termination-hook \
+#   --region eu-north-1
+
 
 
 
@@ -225,6 +266,53 @@ resource "aws_ecs_cluster_capacity_providers" "cluster_capacity_provider" {
 # Rule: With awsvpc, always set target_type = "ip" in your ALB target group.
 
 
+
+
+# TROUBLESHOOTING
+# Airflow tasks and services repeatedly encountered Out of Memory (OOM) errors. 
+# To resolve this, I progressively increased their CPU and memory allocations until resource utilization stabilized and the tasks ran reliably.
+
+
+
+
+# TROUBLESHOOTING: 
+# Airflow task logs (dbt build) not visible in the web UI or CloudWatch
+
+# Problem:
+# The Airflow scheduler/worker and webserver run as separate containers/ECS tasks with no shared filesystem.
+# When a task (e.g., dbt build) executes, Airflow writes detailed task logs to a file on the worker’s local disk ({AIRFLOW_HOME}/logs/{dag_id}/{task_id}/{execution_date}/{attempt}.log).
+# The webserver, which serves the UI, cannot read that disk, so the log panel appears empty.
+# Even though an ECS log group captures container stdout/stderr, Airflow task log files are NOT automatically streamed to stdout – they remain on disk and never reach CloudWatch.
+# That’s why the logs exist on the worker but are invisible in CloudWatch and the UI.
+
+# Solutions:
+# Enable Airflow’s remote logging so that task logs are stored in a shared location (S3 or CloudWatch) that both the worker and the webserver can access.
+
+# Solution 1: Remote logging to S3
+# Set these environment variables on BOTH the webserver and the scheduler/worker tasks:
+# AIRFLOW__LOGGING__REMOTE_LOGGING = True
+# AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER = s3://your-bucket/airflow-logs/
+# AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID = aws_default
+
+
+# Solution 2: Remote logging to CloudWatch
+# Set these environment variables on BOTH the webserver and scheduler/worker tasks:
+# AIRFLOW__LOGGING__REMOTE_LOGGING = True
+# AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID = aws_default
+# AIRFLOW__LOGGING__REMOTE_TASK_LOG_HANDLER = cloudwatch
+# AIRFLOW__LOGGING__REMOTE_LOG_GROUP = /aws/ecs/your-airflow-log-group   # must already exist
+# AIRFLOW__LOGGING__REMOTE_REGION = us-east-1
+# Ensure the IAM role has logs:CreateLogStream and logs:PutLogEvents for the worker, and logs:GetLogEvents / logs:DescribeLogStreams for the webserver.
+
+
+# Common notes:
+# Leave the aws_default connection credentials in airfow variables blank; Airflow will automatically use the IAM role attached to your EC2 instance or ECS task.
+# S3: Logs are stored under a structured path: s3://bucket/airflow-logs/{dag_id}/{task_id}/{execution_date}/{attempt}.log
+# CloudWatch: log group with log streams per task attempt The webserver fetches exactly the log for the current task attempt, so there’s no ambiguity.
+
+
+
+
 # Define the ECS TASKS
 
 # I will store some local variables here to avoid repeatition and keep my config file clean
@@ -272,6 +360,8 @@ resource "aws_ecs_task_definition" "airflow_init_task" {
 
       # This enables cloudwatch log group  
       logConfiguration = local.airflow_log_config,
+      
+      # The username and passwrod used here are for tests, in a production environment, I will conceal them
       command = [
         "bash", "-c",
         "airflow db migrate && (airflow users list | grep -q admin || airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com)"
@@ -286,8 +376,8 @@ resource "aws_ecs_task_definition" "airflow_scheduler_task" {
   task_role_arn      = aws_iam_role.airflow_task_role.arn
   execution_role_arn = aws_iam_role.ecs_task_exec_role.arn
   network_mode       = "awsvpc"
-  cpu                = "512"
-  memory             = "1024"
+  cpu                = "1024"
+  memory             = "2048"
   container_definitions = jsonencode([
     {
       name             = "airflow_scheduler_task",
@@ -299,7 +389,12 @@ resource "aws_ecs_task_definition" "airflow_scheduler_task" {
       environment = [
         { name = "AIRFLOW__CORE__EXECUTOR", value = "LocalExecutor" },
         { name = "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", value = local.airflow_rds_connection },
-        { name = "AIRFLOW__CORE__LOAD_EXAMPLES", value = "false" }
+        { name = "AIRFLOW__CORE__LOAD_EXAMPLES", value = "false" },
+
+        # Explanations for these are outlined in the TROUBLESHOOTING section above
+        { name = "AIRFLOW__LOGGING__REMOTE_LOGGING", value = "True" },
+        { name = "AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER", value = "s3://${aws_s3_bucket.dbt_docs.bucket}/airflow-logs/" },
+        { name = "AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID", value = "aws_default" }
       ]
     }
   ])
@@ -310,7 +405,7 @@ resource "aws_ecs_task_definition" "airflow_webserver_task" {
   task_role_arn      = aws_iam_role.airflow_task_role.arn
   execution_role_arn = aws_iam_role.ecs_task_exec_role.arn
   network_mode       = "awsvpc"
-  cpu                = "1024"
+  cpu                = "512"
   memory             = "2048"
   container_definitions = jsonencode([
     {
@@ -326,7 +421,15 @@ resource "aws_ecs_task_definition" "airflow_webserver_task" {
       environment = [
         { name = "AIRFLOW__CORE__EXECUTOR", value = "LocalExecutor" },
         { name = "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", value = local.airflow_rds_connection },
-        { name = "AIRFLOW__CORE__LOAD_EXAMPLES", value = "false" }
+        { name = "AIRFLOW__CORE__LOAD_EXAMPLES", value = "false" },
+
+        # I need to set this at 2 (adequate for my workload). If its more than that, I'll most likely have Out Of Memory (OOM) errors
+        { name = "AIRFLOW__WEBSERVER__WORKERS", value = "2" },
+
+        # Explanations for these are outlined in the TROUBLESHOOTING section above
+        { name = "AIRFLOW__LOGGING__REMOTE_LOGGING", value = "True" },
+        { name = "AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER", value = "s3://${aws_s3_bucket.dbt_docs.bucket}/airflow-logs/" },
+        { name = "AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID", value = "aws_default" }
       ]
     }
   ])
@@ -341,7 +444,7 @@ resource "aws_ecs_task_definition" "kafka_producer_task" {
   execution_role_arn = aws_iam_role.ecs_task_exec_role.arn
   network_mode       = "awsvpc"
   cpu                = "512"
-  memory             = "1024"
+  memory             = "512"
   container_definitions = jsonencode([
     {
       name      = "kafka_producer_task",
@@ -447,6 +550,7 @@ resource "aws_ecs_service" "airflow_scheduler_service" {
   cluster         = aws_ecs_cluster.data_platform_cluster.id
   task_definition = aws_ecs_task_definition.airflow_scheduler_task.arn
   desired_count   = 1
+  force_delete    = true   # <-- add this
 
   network_configuration {
     security_groups  = [aws_security_group.airflow_sg.id]
@@ -473,6 +577,7 @@ resource "aws_ecs_service" "airflow_webserver_service" {
   cluster         = aws_ecs_cluster.data_platform_cluster.id
   task_definition = aws_ecs_task_definition.airflow_webserver_task.arn
   desired_count   = 1
+  force_delete    = true   # <-- add this
 
   network_configuration {
     security_groups  = [aws_security_group.airflow_sg.id]
@@ -509,6 +614,7 @@ resource "aws_ecs_service" "kafka_producer_service" {
   cluster         = aws_ecs_cluster.data_platform_cluster.id
   task_definition = aws_ecs_task_definition.kafka_producer_task.arn
   desired_count   = 1
+  force_delete    = true
 
   network_configuration {
     security_groups  = [aws_security_group.kafka_utilities_sg.id]
@@ -538,6 +644,7 @@ resource "aws_ecs_service" "kafka_consumer_service" {
   cluster         = aws_ecs_cluster.data_platform_cluster.id
   task_definition = aws_ecs_task_definition.kafka_consumer_task.arn
   desired_count   = 1
+  force_delete    = true   # <-- add this
 
   network_configuration {
     security_groups  = [aws_security_group.kafka_utilities_sg.id]
@@ -567,6 +674,7 @@ resource "aws_ecs_service" "kafka_ui_service" {
   cluster         = aws_ecs_cluster.data_platform_cluster.id
   task_definition = aws_ecs_task_definition.kafka_ui_task.arn
   desired_count   = 1
+  force_delete    = true   # <-- add this
 
   network_configuration {
     security_groups  = [aws_security_group.kafka_utilities_sg.id]
