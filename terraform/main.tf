@@ -17,7 +17,7 @@ provider "aws" {
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# Create VPC, Public and Private subnets
+# Create VPC, Public, Private subnets and remote backend for terraform state file storage
 
 resource "aws_vpc" "main" {
   cidr_block = var.vpc_cidr
@@ -52,6 +52,28 @@ resource "aws_subnet" "private" {
   }
 }
 
+
+# This S3 must already exist in your account. You can create it manually before other infrastructures so that GitHub Actions/terraform can use it to store state files and then provision infra.
+terraform {
+  backend "s3" {
+    bucket       = "data-platform-terraform-state-bucket-fyi"
+    key          = "data-platform/terraform.tfstate" 
+    region       = "eu-north-1"
+    encrypt      = true
+    
+    # This activates native S3 locking instead of DynamoDB
+    use_lockfile = true 
+  }
+}
+
+
+
+# Use this AWS CLI code to create the s3 bucket above;
+
+# aws s3api create-bucket \
+#   --bucket data-platform-terraform-state-bucket-fyi \
+#   --region eu-north-1 \
+#   --create-bucket-configuration LocationConstraint=eu-north-1
 
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -132,4 +154,9 @@ output "public_subnets" {
 
 output "private_subnets" {
   value = aws_subnet.private[*].id
+}
+
+# I need a csv output that will be used in airflow_init task command
+output "private_subnet_ids_csv" {
+  value = join(",", aws_subnet.private[*].id)
 }

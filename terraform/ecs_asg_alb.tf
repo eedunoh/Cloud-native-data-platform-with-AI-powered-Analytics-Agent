@@ -376,7 +376,7 @@ resource "aws_ecs_task_definition" "airflow_scheduler_task" {
   task_role_arn      = aws_iam_role.airflow_task_role.arn
   execution_role_arn = aws_iam_role.ecs_task_exec_role.arn
   network_mode       = "awsvpc"
-  cpu                = "1024"
+  cpu                = "512"
   memory             = "2048"
   container_definitions = jsonencode([
     {
@@ -406,7 +406,7 @@ resource "aws_ecs_task_definition" "airflow_webserver_task" {
   execution_role_arn = aws_iam_role.ecs_task_exec_role.arn
   network_mode       = "awsvpc"
   cpu                = "512"
-  memory             = "2048"
+  memory             = "1024"
   container_definitions = jsonencode([
     {
       name             = "airflow_webserver_task",
@@ -443,7 +443,7 @@ resource "aws_ecs_task_definition" "kafka_producer_task" {
   task_role_arn      = aws_iam_role.kafka_utilities_task_role.arn
   execution_role_arn = aws_iam_role.ecs_task_exec_role.arn
   network_mode       = "awsvpc"
-  cpu                = "512"
+  cpu                = "256"
   memory             = "512"
   container_definitions = jsonencode([
     {
@@ -462,8 +462,8 @@ resource "aws_ecs_task_definition" "kafka_consumer_task" {
   task_role_arn      = aws_iam_role.kafka_utilities_task_role.arn
   execution_role_arn = aws_iam_role.ecs_task_exec_role.arn
   network_mode       = "awsvpc"
-  cpu                = "512"
-  memory             = "1024"
+  cpu                = "256"
+  memory             = "768"
   container_definitions = jsonencode([
     {
       name      = "kafka_consumer_task",
@@ -481,8 +481,8 @@ resource "aws_ecs_task_definition" "kafka_ui_task" {
   task_role_arn      = aws_iam_role.kafka_utilities_task_role.arn
   execution_role_arn = aws_iam_role.ecs_task_exec_role.arn
   network_mode       = "awsvpc"
-  cpu                = "512"
-  memory             = "1024"
+  cpu                = "256"
+  memory             = "768"
   container_definitions = jsonencode([
     {
       name      = "kafka_ui_task",
@@ -550,7 +550,7 @@ resource "aws_ecs_service" "airflow_scheduler_service" {
   cluster         = aws_ecs_cluster.data_platform_cluster.id
   task_definition = aws_ecs_task_definition.airflow_scheduler_task.arn
   desired_count   = 1
-  force_delete    = true   # <-- add this
+  force_delete    = true
 
   network_configuration {
     security_groups  = [aws_security_group.airflow_sg.id]
@@ -558,9 +558,16 @@ resource "aws_ecs_service" "airflow_scheduler_service" {
     assign_public_ip = false
   }
 
+  # RULE 1: Balance tasks across different physical AZs first
   ordered_placement_strategy {
     type  = "spread"
     field = "attribute:ecs.availability-zone"
+  }
+
+  # RULE 2: Inside those AZs, pack them tightly onto the fewest EC2 instances
+  ordered_placement_strategy {
+    type  = "binpack"
+    field = "memory"
   }
 
   # It is important to define a service-specific capacity provider strategy instead of relying solely on the cluster's default strategy. 
@@ -577,7 +584,7 @@ resource "aws_ecs_service" "airflow_webserver_service" {
   cluster         = aws_ecs_cluster.data_platform_cluster.id
   task_definition = aws_ecs_task_definition.airflow_webserver_task.arn
   desired_count   = 1
-  force_delete    = true   # <-- add this
+  force_delete    = true
 
   network_configuration {
     security_groups  = [aws_security_group.airflow_sg.id]
@@ -591,11 +598,17 @@ resource "aws_ecs_service" "airflow_webserver_service" {
     container_port   = 8080
   }
 
+  # RULE 1: Balance tasks across different physical AZs first
   ordered_placement_strategy {
     type  = "spread"
     field = "attribute:ecs.availability-zone"
   }
 
+  # RULE 2: Inside those AZs, pack them tightly onto the fewest EC2 instances
+  ordered_placement_strategy {
+    type  = "binpack"
+    field = "memory"
+  }
   # It is important to define a service-specific capacity provider strategy instead of relying solely on the cluster's default strategy. 
   # Without it, the AWS API automatically applies the cluster's default settings, creating a mismatch with your terraform configuration file and that forces Terraform to destructively replace the service.  
   capacity_provider_strategy {
@@ -622,9 +635,16 @@ resource "aws_ecs_service" "kafka_producer_service" {
     assign_public_ip = false
   }
 
+  # RULE 1: Balance tasks across different physical AZs first
   ordered_placement_strategy {
     type  = "spread"
     field = "attribute:ecs.availability-zone"
+  }
+
+  # RULE 2: Inside those AZs, pack them tightly onto the fewest EC2 instances
+  ordered_placement_strategy {
+    type  = "binpack"
+    field = "memory"
   }
 
   # It is important to define a service-specific capacity provider strategy instead of relying solely on the cluster's default strategy. 
@@ -644,7 +664,7 @@ resource "aws_ecs_service" "kafka_consumer_service" {
   cluster         = aws_ecs_cluster.data_platform_cluster.id
   task_definition = aws_ecs_task_definition.kafka_consumer_task.arn
   desired_count   = 1
-  force_delete    = true   # <-- add this
+  force_delete    = true
 
   network_configuration {
     security_groups  = [aws_security_group.kafka_utilities_sg.id]
@@ -652,9 +672,16 @@ resource "aws_ecs_service" "kafka_consumer_service" {
     assign_public_ip = false
   }
 
+  # RULE 1: Balance tasks across different physical AZs first
   ordered_placement_strategy {
     type  = "spread"
     field = "attribute:ecs.availability-zone"
+  }
+
+  # RULE 2: Inside those AZs, pack them tightly onto the fewest EC2 instances
+  ordered_placement_strategy {
+    type  = "binpack"
+    field = "memory"
   }
 
   # It is important to define a service-specific capacity provider strategy instead of relying solely on the cluster's default strategy. 
@@ -674,7 +701,7 @@ resource "aws_ecs_service" "kafka_ui_service" {
   cluster         = aws_ecs_cluster.data_platform_cluster.id
   task_definition = aws_ecs_task_definition.kafka_ui_task.arn
   desired_count   = 1
-  force_delete    = true   # <-- add this
+  force_delete    = true
 
   network_configuration {
     security_groups  = [aws_security_group.kafka_utilities_sg.id]
@@ -688,9 +715,16 @@ resource "aws_ecs_service" "kafka_ui_service" {
     container_port   = 8080
   }
 
+  # RULE 1: Balance tasks across different physical AZs first
   ordered_placement_strategy {
     type  = "spread"
     field = "attribute:ecs.availability-zone"
+  }
+
+  # RULE 2: Inside those AZs, pack them tightly onto the fewest EC2 instances
+  ordered_placement_strategy {
+    type  = "binpack"
+    field = "memory"
   }
 
   # It is important to define a service-specific capacity provider strategy instead of relying solely on the cluster's default strategy. 

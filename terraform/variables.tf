@@ -269,11 +269,10 @@ variable "airflow_db_username" {
   type        = string
 }
 
-# The passwrod used here are for testing, in a production environment, I will conceal it
 variable "airflow_db_password" {
-  default     = "adminSuperUser1123"
-  description = "airflow db password"
   type        = string
+  description = "airflow db password"
+  sensitive   = true
 }
 
 
@@ -334,29 +333,30 @@ variable "mskafka_log_group_name" {
 
 # Standard StreamPipe
 variable "snowflake_aws_regional_sqs_arn" {
-  default     = "arn:aws:sqs:eu-north-1:008349342067:sf-snowpipe-AIDAQD4NI3FZ342HB7FJI-wXImCEFsBXykJjmvWYIGNw"
-  description = "snowflake-AWS regional SQS arn"
   type        = string
+  description = "snowflake-AWS regional SQS arn"
+  sensitive   = true
 }
 
 variable "snowflake_storage_aws_iam_user_arn" {
-  default     = "arn:aws:iam::008349342067:user/bytv1000-s"
-  description = "Storage IAM user ARN to be attached to the snowflake IAM Role on AWS"
   type        = string
+  description = "Storage IAM user ARN to be attached to the snowflake IAM Role on AWS"
+  sensitive   = true
 }
 
 variable "snowflake_storage_aws_external_id" {
-  default     = "RR04386_SFCRole=6_5dvQAUVMjeNRWVFrV+576mlOLuo="
+  type        = string
   description = "Storage external ID attached to the snowflake IAM Role on AWS"
+  sensitive   = true
 }
 
 
 
 # StreamPipe Streaming
 variable "snowflake_account" {
-  default     = "RYMWEUH-FL97006"
-  description = "Snowflake Account Identifier"
   type        = string
+  description = "Snowflake Account Identifier"
+  sensitive   = true
 }
 
 variable "snowflake_database" {

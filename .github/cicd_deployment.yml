@@ -1,0 +1,189 @@
+name: Data platform ci/cd pipeline
+
+# stage 1: Trigger
+# Every push to main triggers the workflow. We can also use pull_request or schedule: - cron
+on:
+  push:
+    branches:
+      - main
+
+  # Defined to allow manual runs with inputs (needed for terraform destroy)
+  # workflow_dispatch: Lets you run the workflow by hand from the GitHub website.
+  # inputs: Creates options you must choose before the manual run starts.
+  # required: true: Forces you to make a choice before you can click run.
+  # default: false: Sets the starting choice to "no" so you do not delete things by
+
+  workflow_dispatch:
+    inputs:
+      destroy:
+        description: "Destroy infrastructure?"
+        required: true
+        default: "false"
+
+
+
+
+# Stage 2: Define the jobs
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+
+    # Stage 3: define environment variables
+    env: 
+      TERRAFORM_DIR: terraform
+      TF_PLAN_FILE: tfplan.binary
+      ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+      TF_VAR_airflow_db_password: ${{ secrets.AIRFLOW_DB_PASSWORD }}
+      TF_VAR_snowflake_aws_regional_sqs_arn: ${{ secrets.SNOWFLAKE_AWS_REGIONAL_SQS_ARN }}
+      TF_VAR_snowflake_storage_aws_iam_user_arn: ${{ secrets.SNOWFLAKE_STORAGE_AWS_IAM_USER_ARN }}
+      TF_VAR_snowflake_storage_aws_external_id: ${{ secrets.SNOWFLAKE_STORAGE_AWS_EXTERNAL_ID }}
+      TF_VAR_snowflake_account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+
+
+    steps:
+
+      # Stage 4: Check out your code
+      # When GitHub Actions runs your workflow, it launches a fresh virtual machine (runner). That VM is empty and does not automatically contain your repository code.
+      # So similar to Jenkins, if you want to: Run Terraform (terraform init, terraform plan, etc.) or Build Docker images (needs your Dockerfile), you need the repo files available inside the runner. 
+      # That’s what this step does:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+  
+
+      # Stage 5: Configure AWS
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1
+      
+
+
+      # Stage 6: Login to ECR
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+
+
+      # Stage 7: Build Docker Images
+      # This condition is necessary because right now, Docker build, push and terraform plan/apply are in the same job with terraform destroy. 
+      # That means on manual runs with destroy=true, it will still run the pre-destroy steps like docker-push and terraform-apply before running terraform destroy, and that is not ideal.
+      # So IT stops Github from building and pushing docker images when we are destroying infrastructures. Basically, manual trigger with destroy=true → Skips the Docker Build stage
+      - name: Build Docker Image
+        if: github.event.inputs.destroy != 'true'
+        run: |
+          docker build -t $ECR_REGISTRY/airflow:latest -f ./ecs_docker_files/dockerfile.airflow .
+          docker build -t $ECR_REGISTRY/kafka_consumer:latest -f ./ecs_docker_files/dockerfile.consumer .
+          docker build -t $ECR_REGISTRY/kafka_producer:latest -f ./ecs_docker_files/dockerfile.producer .
+
+   
+
+      # Stage 8: Initialize Terraform
+      # This is a reusable package (like plugins or modules) that someone has written and published on the GitHub Marketplace. 
+      # hashicorp/setup-terraform@v2 → An action by HashiCorp that installs Terraform in the GitHub Actions runner. Without it, the runner has no Terraform installed.
+      # It tells setup-terraform which Terraform version to install on the runner.
+      - name: Initialize Terraform
+        uses: hashicorp/setup-terraform@v2    
+        with:
+          terraform_version: 1.6.0
+
+
+
+      # Stage 9: Run Terraform Init And Plan 
+      # I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
+      # Manual trigger with destroy=true → Skips Terraform Init and Plan step
+      - name: Run Terraform Init And Plan
+        if: github.event.inputs.destroy != "true"
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: |
+            terraform init
+            terraform plan -out=$TF_PLAN_FILE
+
+
+
+      # Stage 10: Terraform Apply 
+      # Manual trigger with destroy=true → Skips Terraform Apply step
+      # Note: I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
+      - name: Terraform Apply
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        if: github.event.inputs.destroy != "true"
+        run: |
+          terraform apply -auto-approve $TF_PLAN_FILE
+
+
+
+      # Stage 11: Push Docker Images
+      # Manual trigger with destroy=true → Skips the Docker Push stage
+      - name: Push Docker Image to ECR
+        if: github.event.inputs.destroy != "true"
+        run: |
+          docker push $ECR_REGISTRY/airflow:latest
+          docker push $ECR_REGISTRY/kafka_consumer:latest
+          docker push $ECR_REGISTRY/kafka_producer:latest
+        
+
+
+      # Stage 12: Get Terraform outputs. 
+      # This will be used in the next step to start airflow-init task. For context, airflow-init tasks is responsible for creating the admin/password needed to start airflow scheduler and webserver.
+      # The user will be stored in AWS RDS instance, which will also hold airflow metadata.
+
+      # Terraform looks in its state file and retrieves the value of these outputs defined in terraform files (ecs_cluster_name, private_subnet_ids_csv and ecs_tasks_sg_id).
+      # Formats them individually as a GitHub Actions step output named cluster, subnets and sg.
+      # >> "$GITHUB_OUTPUT" Saves it on Github so later steps can access it.
+
+      # Manual trigger with destroy=true → Skips the Get Terraform outputs step
+      - name: Get Terraform outputs
+        if: github.event.inputs.destroy != "true"
+        id: tf_outputs
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: |
+          echo "cluster=$(terraform output -raw ecs_cluster_name)" >> "$GITHUB_OUTPUT"
+          echo "subnets=$(terraform output -raw private_subnet_ids_csv)" >> "$GITHUB_OUTPUT"
+          echo "sg=$(terraform output -raw ecs_tasks_sg_id)" >> "$GITHUB_OUTPUT"
+
+
+
+      # Stage 13: Run airflow_init task. Thus ia an ECS task responsible for creating the admin/password needed to start airflow scheduler and webserver.
+      # Manual trigger with destroy=true → Skips the Run Airflow_init task step
+      - name: Run airflow_init task
+        if: github.event.inputs.destroy != "true"
+        run: |
+          aws ecs run-task \
+            --cluster ${{ steps.tf_outputs.outputs.cluster }} \
+            --task-definition airflow_init \
+            --capacity-provider-strategy "capacityProvider=cap_provider,weight=100,base=1" \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ steps.tf_outputs.outputs.subnets }}],securityGroups=[${{ steps.tf_outputs.outputs.sg }}],assignPublicIp=DISABLED}" \
+            --region eu-north-1
+
+
+
+      # Stage 14: Destroy Infra
+      # It only runs the step if a workflow input variable named destroy equals "true". That input comes from workflow_dispatch, which lets you trigger workflows manually and pass parameters.
+      # When you trigger this workflow manually in GitHub’s Actions tab, you’ll see a dropdown/input asking: Destroy infrastructure? 
+      # If you pick "true" → the step with if: github.event.inputs.destroy == 'true' runs.
+      # If "false" → that step is skipped.
+
+      # Note: I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
+      - name: Terraform Destroy
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        if: github.event.inputs.destroy == "true"
+
+        run: |
+          terraform destroy -auto-approve
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+
+
+# Something to note:
+# if: github.event_name == 'workflow_dispatch' →  Checks the type of trigger. It runs if the workflow was triggered manually, regardless of what inputs were passed.
+
+# if: github.event.inputs.destroy == 'true' →  Checks the value of an input variable from the manual trigger. Runs only if you ran the workflow manually AND selected destroy = true.
+
+
+# So:
+# First one checks how the workflow was started.
+# Second one checks what options were passed when it started.
