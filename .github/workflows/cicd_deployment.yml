@@ -85,9 +85,9 @@ jobs:
       # hashicorp/setup-terraform@v2 → An action by HashiCorp that installs Terraform in the GitHub Actions runner. Without it, the runner has no Terraform installed.
       # It tells setup-terraform which Terraform version to install on the runner.
       - name: Initialize Terraform
-        uses: hashicorp/setup-terraform@v2    
+        uses: hashicorp/setup-terraform@v3    
         with:
-          terraform_version: 1.6.0
+          terraform_version: 1.13.1
 
 
 
