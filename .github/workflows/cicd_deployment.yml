@@ -170,7 +170,7 @@ jobs:
         run: |
           echo "cluster=$(terraform output -raw ecs_cluster_name)" >> "$GITHUB_OUTPUT"
           echo "subnets=$(terraform output -raw private_subnet_ids_csv)" >> "$GITHUB_OUTPUT"
-          echo "sg=$(terraform output -raw ecs_tasks_sg_id)" >> "$GITHUB_OUTPUT"
+          echo "sg=$(terraform output -raw airflow_security_group_id)" >> "$GITHUB_OUTPUT"
 
 
 

@@ -739,3 +739,11 @@ resource "aws_ecs_service" "kafka_ui_service" {
   depends_on = [aws_msk_cluster.data_platform_kafka]
 }
 
+
+
+
+
+# Output
+output "ecs_cluster_name" {
+  value = aws_ecs_cluster.data_platform_cluster.name
+}
