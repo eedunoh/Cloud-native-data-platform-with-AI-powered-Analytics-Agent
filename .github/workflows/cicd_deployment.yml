@@ -108,6 +108,7 @@ jobs:
       # The command uses "|| true" so the pipeline continues if the secret is already active or already tracked in state.
       # Manual trigger with destroy=true → Skips Terraform Import Existing Secret step
       - name: Terraform Import Existing Secret
+        working-directory: ${{ env.TERRAFORM_DIR }}
         if: github.event.inputs.destroy != true
         run: |
           aws secretsmanager restore-secret \
@@ -123,6 +124,7 @@ jobs:
       # I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
       # Manual trigger with destroy=true → Skips Terraform Plan step
       - name: Run Terraform Init Plan
+      
         if: github.event.inputs.destroy != true
         working-directory: ${{ env.TERRAFORM_DIR }}
         run: |
