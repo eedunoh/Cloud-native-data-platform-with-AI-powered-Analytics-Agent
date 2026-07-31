@@ -176,10 +176,18 @@ time.sleep(5)
 # The alternative is 'latest' which means "on first run, ignore everything already in Kafka and only read new messages from this point forward."
 # For a data pipeline, earliest is safer. You never miss data.
 
+## A message reaching the Kafka broker is always safe.
+# The risk is narrower once the consumer picks a message up but hasn't yet finished delivering it to Snowflake, and the container dies in that gap, auto-commit may have already marked it "done," so it's silently skipped on restart.
+# Turning off auto-commit and manually committing only after a successful Snowflake write closes that gap. A crash there now causes a safe retry instead of a silent loss.
+
+# Because Kafka now controls resumability, Snowflake's offset_token is no longer used. 
+# If the consumer crashes after successfully writing to Snowflake but before committing the Kafka offset, Kafka will redeliver the message after restart and Snowflake may ingest it again. 
+# This provides at-least-once delivery (no message loss), so duplicate records should be handled by downstream deduplication logic (for example, in the Silver layer).
 consumer = Consumer({
     'bootstrap.servers':bootstrap_servers,
     'group.id':'electronics_retail_consumer',
-    'auto.offset.reset':'earliest'
+    'auto.offset.reset':'earliest',
+    'enable.auto.commit': False
 })
 
 
@@ -332,8 +340,12 @@ try:
             "source_file": msg.topic()
         }
 
+        # Add the row to the Snowpipe Streaming channel for ingestion into Snowflake.
         channel.append_row(row)
 
+        # Commit the Kafka offset only after the row has been successfully accepted.
+        # This tells Kafka the message has been processed and should not be redelivered.
+        consumer.commit(msg) 
 
         # Start process to send to s3. 
         # Python decodes the message/event and stores it in the event_buffer
@@ -354,8 +366,9 @@ try:
             window_start = time.time()
 
 
-except Exception as e:
+except Exception:
     logger.exception(f"Streaming ingestion failed")
+    raise   
 
 
 finally:

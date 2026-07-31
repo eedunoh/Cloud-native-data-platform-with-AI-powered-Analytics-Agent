@@ -6,23 +6,28 @@
 # Create S3 buckets
 resource "aws_s3_bucket" "streaming_bucket" {
   bucket = var.streaming_bucket_name
+  force_destroy = true
 }
 
 resource "aws_s3_bucket" "batch_bucket" {
   bucket = var.batch_bucket_name
+  force_destroy = true
 }
 
 resource "aws_s3_bucket" "policy_document_bucket" {
   bucket = var.policy_document_bucket_name
+  force_destroy = true
 }
 
 resource "aws_s3_bucket" "document_extract_bucket" {
   bucket = var.document_extract_bucket_name
+  force_destroy = true
 }
 
 # To view dbt docs, we need a static website served through S3. 
 resource "aws_s3_bucket" "dbt_docs" {
   bucket = var.dbt_doc_bucket_name
+  force_destroy = true
 }
 
 

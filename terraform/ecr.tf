@@ -27,6 +27,7 @@ resource "aws_ecr_repository" "airflow_repository" {
   image_scanning_configuration {
     scan_on_push = true
   }
+  force_delete = true
   image_tag_mutability = "MUTABLE"
 }
 
@@ -35,6 +36,7 @@ resource "aws_ecr_repository" "kafka_producer_repository" {
   image_scanning_configuration {
     scan_on_push = true
   }
+  force_delete = true
   image_tag_mutability = "MUTABLE"
 }
 
@@ -43,6 +45,7 @@ resource "aws_ecr_repository" "kafka_consumer_repository" {
   image_scanning_configuration {
     scan_on_push = true
   }
+  force_delete = true
   image_tag_mutability = "MUTABLE"
 }
 
