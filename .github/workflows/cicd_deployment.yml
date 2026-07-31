@@ -18,7 +18,7 @@ on:
       destroy:
         description: "Destroy infrastructure?"
         required: true
-        default: "false"
+        default: false
 
 
 
@@ -95,7 +95,7 @@ jobs:
       # I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
       # Manual trigger with destroy=true → Skips Terraform Init and Plan step
       - name: Run Terraform Init And Plan
-        if: github.event.inputs.destroy != "true"
+        if: github.event.inputs.destroy != true
         working-directory: ${{ env.TERRAFORM_DIR }}
         run: |
             terraform init
@@ -108,7 +108,7 @@ jobs:
       # Note: I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
       - name: Terraform Apply
         working-directory: ${{ env.TERRAFORM_DIR }}
-        if: github.event.inputs.destroy != "true"
+        if: github.event.inputs.destroy != true
         run: |
           terraform apply -auto-approve $TF_PLAN_FILE
 
@@ -117,7 +117,7 @@ jobs:
       # Stage 11: Push Docker Images
       # Manual trigger with destroy=true → Skips the Docker Push stage
       - name: Push Docker Image to ECR
-        if: github.event.inputs.destroy != "true"
+        if: github.event.inputs.destroy != true
         run: |
           docker push $ECR_REGISTRY/airflow:latest
           docker push $ECR_REGISTRY/kafka_consumer:latest
@@ -135,7 +135,7 @@ jobs:
 
       # Manual trigger with destroy=true → Skips the Get Terraform outputs step
       - name: Get Terraform outputs
-        if: github.event.inputs.destroy != "true"
+        if: github.event.inputs.destroy != true
         id: tf_outputs
         working-directory: ${{ env.TERRAFORM_DIR }}
         run: |
@@ -148,7 +148,7 @@ jobs:
       # Stage 13: Run airflow_init task. Thus ia an ECS task responsible for creating the admin/password needed to start airflow scheduler and webserver.
       # Manual trigger with destroy=true → Skips the Run Airflow_init task step
       - name: Run airflow_init task
-        if: github.event.inputs.destroy != "true"
+        if: github.event.inputs.destroy != true
         run: |
           aws ecs run-task \
             --cluster ${{ steps.tf_outputs.outputs.cluster }} \
@@ -168,7 +168,7 @@ jobs:
       # Note: I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
       - name: Terraform Destroy
         working-directory: ${{ env.TERRAFORM_DIR }}
-        if: github.event.inputs.destroy == "true"
+        if: github.event.inputs.destroy == true
 
         run: |
           terraform destroy -auto-approve
