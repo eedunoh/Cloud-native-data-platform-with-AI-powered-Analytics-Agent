@@ -91,19 +91,46 @@ jobs:
 
 
 
-      # Stage 9: Run Terraform Init And Plan 
+      # Stage 9: Run Terraform Init
       # I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
-      # Manual trigger with destroy=true → Skips Terraform Init and Plan step
-      - name: Run Terraform Init And Plan
+      # Manual trigger with destroy=true → Skips Terraform Init step
+      - name: Run Terraform Init
         if: github.event.inputs.destroy != true
         working-directory: ${{ env.TERRAFORM_DIR }}
         run: |
             terraform init
+
+
+
+      # Stage 10: Import existing Snowflake secret into Terraform state (one-time recovery step)
+      # This handles cases where the secret exists in AWS Secrets Manager but is missing from Terraform remote state.
+      # If the secret is scheduled for deletion, it restores it before importing.
+      # The command uses "|| true" so the pipeline continues if the secret is already active or already tracked in state.
+      # Manual trigger with destroy=true → Skips Terraform Import Existing Secret step
+      - name: Terraform Import Existing Secret
+        if: github.event.inputs.destroy != true
+        run: |
+          aws secretsmanager restore-secret \
+            --secret-id snowflake_private_key || true     
+
+          terraform import \
+            aws_secretsmanager_secret.snowflake_private_key \
+            snowflake_private_key || true
+
+
+
+      # Stage 11: Run Terraform Plan 
+      # I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
+      # Manual trigger with destroy=true → Skips Terraform Plan step
+      - name: Run Terraform Init Plan
+        if: github.event.inputs.destroy != true
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: |
             terraform plan -out=$TF_PLAN_FILE
 
 
 
-      # Stage 10: Terraform Apply 
+      # Stage 12: Terraform Apply 
       # Manual trigger with destroy=true → Skips Terraform Apply step
       # Note: I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
       - name: Terraform Apply
@@ -114,7 +141,7 @@ jobs:
 
 
 
-      # Stage 11: Push Docker Images
+      # Stage 13: Push Docker Images
       # Manual trigger with destroy=true → Skips the Docker Push stage
       - name: Push Docker Image to ECR
         if: github.event.inputs.destroy != true
@@ -125,7 +152,7 @@ jobs:
         
 
 
-      # Stage 12: Get Terraform outputs. 
+      # Stage 14: Get Terraform outputs. 
       # This will be used in the next step to start airflow-init task. For context, airflow-init tasks is responsible for creating the admin/password needed to start airflow scheduler and webserver.
       # The user will be stored in AWS RDS instance, which will also hold airflow metadata.
 
@@ -145,7 +172,7 @@ jobs:
 
 
 
-      # Stage 13: Run airflow_init task. Thus ia an ECS task responsible for creating the admin/password needed to start airflow scheduler and webserver.
+      # Stage 15: Run airflow_init task. Thus ia an ECS task responsible for creating the admin/password needed to start airflow scheduler and webserver.
       # Manual trigger with destroy=true → Skips the Run Airflow_init task step
       - name: Run airflow_init task
         if: github.event.inputs.destroy != true
@@ -159,7 +186,7 @@ jobs:
 
 
 
-      # Stage 14: Destroy Infra
+      # Stage 16: Destroy Infra
       # It only runs the step if a workflow input variable named destroy equals "true". That input comes from workflow_dispatch, which lets you trigger workflows manually and pass parameters.
       # When you trigger this workflow manually in GitHub’s Actions tab, you’ll see a dropdown/input asking: Destroy infrastructure? 
       # If you pick "true" → the step with if: github.event.inputs.destroy == 'true' runs.
