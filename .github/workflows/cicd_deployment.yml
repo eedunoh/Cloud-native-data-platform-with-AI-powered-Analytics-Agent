@@ -170,44 +170,7 @@ jobs:
             --region eu-north-1
 
 
-
-      # Stage 14: Get ASG NameGet ASG Name and Scale In Auto Scaling Group capacity.
-      # This step also combines two executions.
-
-      # For context, I had an error during terraform destroy where AWS ECS could not delete most services while tasks are stuck in the DRAINING state. So terraform timed out waiting for these services to reach INACTIVE state.
-      # This step scales the Auto Scaling Group to zero capacity so the ECS container instances are terminated before infrastructure destruction.
-      # A 5-minute wait is used to allow the Auto Scaling Group sufficient time to terminate container instances before Terraform begins destroying the remaining infrastructure.
-      # I will also print the updated capacity of the ASG to be sure the scale in was successful.
-
-      # Manual trigger with destroy=true → Executes Get_ASG_Name and Scale_In_Auto_Scaling_Group.
-
-      - name: Get ASG Name
-        if: github.event.inputs.destroy == 'true'
-        id: tf_asg_output
-        working-directory: ${{ env.TERRAFORM_DIR }}
-        run: |
-          echo "asg_name=$(terraform output -raw autoscaling_group_name)" >> "$GITHUB_OUTPUT"
-
-
-      - name: Scale In Auto Scaling Group
-        working-directory: ${{ env.TERRAFORM_DIR }}
-        if: github.event.inputs.destroy == 'true'
-        run: |          
-          aws autoscaling update-auto-scaling-group \
-            --auto-scaling-group-name ${{ steps.tf_asg_output.outputs.asg_name }} \
-            --min-size 0 \
-            --desired-capacity 0 \
-            --max-size 0 \
-            --region eu-north-1
-
-          sleep 300
-
-          aws autoscaling describe-auto-scaling-groups \
-            --auto-scaling-group-names ${{ steps.tf_asg_output.outputs.asg_name }} \
-            --region eu-north-1
-        continue-on-error: true
-
-      # Stage 15: Destroy Infra
+      # Stage 14: Destroy Infra
       # It only runs the step if a workflow input variable named destroy equals "true". That input comes from workflow_dispatch, which lets you trigger workflows manually and pass parameters.
       # When you trigger this workflow manually in GitHub’s Actions tab, you’ll see a dropdown/input asking: Destroy infrastructure? 
       # Manual trigger with destroy=true → Executes Terraform Destroy.
