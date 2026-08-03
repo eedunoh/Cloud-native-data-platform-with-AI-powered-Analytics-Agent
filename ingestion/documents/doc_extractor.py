@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 # Define where to get anthropic API key
-API_KEY = Variable.get("ANTHROPIC_API_KEY")
+API_KEY = Config.anthropic_api_key
 
 
 # Initialize claude client so we can use claude's ai for reasoning via the API

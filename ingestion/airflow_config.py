@@ -62,7 +62,18 @@ class Config:
         cls.batch_bucket = cls.get_ssm_parameter("batch_bucket")
         cls.policy_document_bucket = cls.get_ssm_parameter("policy_document_bucket")
         cls.document_extract_bucket = cls.get_ssm_parameter("document_extract_bucket")
-        cls.dbt_doc_bucket = cls.get_ssm_parameter("dbt_docs_s3_bucket")
+        cls.dbt_docs_s3_bucket = cls.get_ssm_parameter("dbt_docs_s3_bucket")
+
+        # Airlow Snowflake Connection details
+        cls.snowflake_account = cls.get_ssm_parameter("snowflake_account")
+        cls.snowflake_warehouse = cls.get_ssm_parameter("snowflake_warehouse")
+        cls.snowflake_database = cls.get_ssm_parameter("snowflake_database")
+        cls.airflow_data_platform_user = cls.get_ssm_parameter("airflow_data_platform_user")
+        cls.airflow_data_platform_user_password = cls.get_ssm_parameter("airflow_data_platform_user_password")
+        cls.airflow_data_platform_role = cls.get_ssm_parameter("airflow_data_platform_role")
+
+        # Claude/Anthropic API key
+        cls.anthropic_api_key = cls.get_ssm_parameter("anthropic_api_key")
 
         missing = [name for name in 
                    [
@@ -70,6 +81,15 @@ class Config:
                     "policy_document_bucket", 
                     "document_extract_bucket", 
                     "dbt_doc_bucket",
+
+                    "snowflake_account",
+                    "snowflake_warehouse",
+                    "snowflake_database",
+                    "airflow_data_platform_user",
+                    "airflow_data_platform_user_password",
+                    "airflow_data_platform_role",
+
+                    "anthropic_api_key"
                     ]
                 if getattr(cls, name) is None]
         

@@ -43,28 +43,6 @@ class Config:
             return None
 
 
-    @staticmethod
-    def get_secret(secret_name):
-        try:
-            secretsmanager = boto3.client("secretsmanager", region_name=Config.aws_region)
-            response = secretsmanager.get_secret_value(SecretId=secret_name)
-
-            # This is what the response looks like;
-
-            # {
-            #  'ARN': 'arn:aws:secretsmanager:eu-north-1:123456789012:secret:snowflake/private_key-AbCdEf',
-            #  'Name': 'snowflake/private_key',
-            #  'VersionId': '2a5d4b8b-5d61-4f96-9d17-xxxxxxxxxxxx',
-            #  'SecretString': '-----BEGIN PRIVATE KEY-----\nxxxxxxx...\n-----END PRIVATE KEY-----',
-            #  'VersionStages': ['AWSCURRENT'],
-            #  'CreatedDate': datetime.datetime(2026, 7, 28, 18, 30, 10)
-            # }
-
-            return response["SecretString"]
-
-        except Exception as e:
-            print(f"Warning: Unable to fetch {secret_name} from Secrets Manager: {e}")
-            return None
     
     @classmethod
     def initialize(cls):
@@ -75,9 +53,9 @@ class Config:
         # Snowflake connection details
         cls.snowflake_account = cls.get_ssm_parameter("snowflake_account")
         cls.snowflake_database = cls.get_ssm_parameter("snowflake_database")
-        cls.snowflake_private_key = cls.get_secret("snowflake_private_key")
-        cls.snowflake_db_user = cls.get_ssm_parameter("snowflake_db_user")
         cls.snowflake_streaming_pipe = cls.get_ssm_parameter("snowflake_streaming_pipe")
+        cls.kafka_streamer_user = cls.get_ssm_parameter("kafka_streamer_user")
+        cls.snowflake_private_key = cls.get_ssm_parameter("snowflake_private_key")
 
         # Others
         cls.msk_bootstrap_server = cls.get_ssm_parameter("msk_bootstrap_server")
@@ -88,9 +66,9 @@ class Config:
        
                     "snowflake_account", 
                     "snowflake_database", 
-                    "snowflake_private_key", 
-                    "snowflake_db_user", 
                     "snowflake_streaming_pipe",
+                    "kafka_streamer_user", 
+                    "snowflake_private_key", 
 
                     "msk_bootstrap_server"
                     ]

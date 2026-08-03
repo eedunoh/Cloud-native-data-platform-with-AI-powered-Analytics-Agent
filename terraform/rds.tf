@@ -13,8 +13,8 @@ resource "aws_db_instance" "airflow_postgres_instance" {
   instance_class = var.airflow_rds_instance_class
 
   db_name  = var.airflow_db_name
-  username = var.airflow_db_username
-  password = var.airflow_db_password
+  username = var.airflow_rds_username
+  password = var.airflow_rds_password
 
   allocated_storage     = 20
   max_allocated_storage = 50

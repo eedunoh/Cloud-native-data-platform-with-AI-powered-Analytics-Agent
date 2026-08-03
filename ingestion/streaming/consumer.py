@@ -39,14 +39,14 @@ s3_client = boto3.client("s3", region_name=Config.aws_region)
 # Create a client
 client = StreamingIngestClient(
     client_name="kafka_streaming",
-    db_name=Config.snowflake_database,
-    schema_name="raw",
-    pipe_name=Config.snowflake_streaming_pipe,
-    properties={
+    db_name = Config.snowflake_database,
+    schema_name = "raw",
+    pipe_name = Config.snowflake_streaming_pipe,
+    properties = {
         "account": Config.snowflake_account,
-        "user": Config.snowflake_db_user,
-        "private_key": Config.snowflake_private_key,
-        "url": f"https://{Config.snowflake_account}.snowflakecomputing.com"
+        "url": f"https://{Config.snowflake_account}.snowflakecomputing.com",
+        "user": Config.kafka_streamer_user,
+        "private_key": Config.snowflake_private_key
     }
 )
 

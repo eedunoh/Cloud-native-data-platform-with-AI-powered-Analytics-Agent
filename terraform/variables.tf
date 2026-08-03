@@ -263,13 +263,13 @@ variable "airflow_rds_instance_class" {
   type        = string
 }
 
-variable "airflow_db_username" {
+variable "airflow_rds_username" {
   default     = "adminsuperuser"
   description = "airflow db username"
   type        = string
 }
 
-variable "airflow_db_password" {
+variable "airflow_rds_password" {
   type        = string
   description = "airflow db password"
   sensitive   = true
@@ -324,14 +324,32 @@ variable "mskafka_log_group_name" {
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Snowflake Variables
+variable "snowflake_account" {
+  type        = string
+  description = "Snowflake Account Identifier"
+  sensitive   = true
+}
+
+variable "snowflake_warehouse" {
+  default     = "data_platform_wh"
+  description = "Snowflake warehouse"
+  type        = string
+}
+
+variable "snowflake_database" {
+  default     = "data_platform_db"
+  description = "Snowflake database"
+  type        = string
+}
+
+
+# Standard Snowpipe
 
 # When you configure an auto-ingest Snowpipe, Snowflake automatically generates an (ONLY 1) Amazon SQS queue to handle file notifications for ALL PIPES
 # Because Snowflake provisions one dedicated SQS queue per region for your entire account, every automated Snowpipe created on stages in that same region will display the exact same notification channel ARN.
 # ALWAYS CONFIRM ALL OF THEM HAVE THE SAME ARN. DON'T ASSUME
 # Replace these ARN with your snowflake generated SQS ARN
 
-
-# Standard StreamPipe
 variable "snowflake_aws_regional_sqs_arn" {
   type        = string
   description = "snowflake-AWS regional SQS arn"
@@ -351,28 +369,51 @@ variable "snowflake_storage_aws_external_id" {
 }
 
 
-
-# StreamPipe Streaming
-variable "snowflake_account" {
+# Airflow Snowflake variables
+variable "airflow_data_platform_user" {
+  default     = "data_platform_user"
+  description = "Snowflake user with permission to load data into other raw tables like customers, stores etc. and used on dbt to transform data in silver and gold schemas"
   type        = string
-  description = "Snowflake Account Identifier"
+}
+
+variable "airflow_data_platform_user_password" {
+  type        = string
+  description = "Password of the airflow_data_platform_user"
   sensitive   = true
 }
 
-variable "snowflake_database" {
-  default     = "data_platform_db"
-  description = "Snowflake database"
+variable "airflow_data_platform_role" {
+  default     = "data_platform_role"
+  description = "Role of the airflow_data_platform_user with associated permissions"
   type        = string
 }
 
-variable "snowflake_db_user" {
+
+# Kafka Snowflake variables
+variable "kafka_streamer_user" {
   default     = "kafka_streamer_user"
   description = "Snowflake user with permission to load streaming data into raw stream table"
   type        = string
+}
+
+variable "snowflake_private_key" {
+  type        = string
+  description = "Snowflake Snowpipe streaming private key"
+  sensitive   = true
 }
 
 variable "snowflake_streaming_pipe" {
   default     = "KAFKA_PIPE"
   description = "Snowpipe Streaming pipe for kafka"
   type        = string
+}
+
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Anthropic/Claude API key
+variable "anthropic_api_key" {
+  type        = string
+  description = "Anthropic/Claude-AI api key"
+  sensitive   = true
 }

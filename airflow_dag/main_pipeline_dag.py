@@ -33,7 +33,7 @@ from ingestion.airflow_config import Config
 # Next, define dbt_docs s3 bucket, dbt_project and dbt_profile folders.
 DBT_PROFILE_DIR = '/opt/dbt_profile'
 DBT_PROJECT_DIR = '/opt/dbt_project'
-DBT_DOCS_S3_BUCKET = Config.dbt_doc_bucket
+DBT_DOCS_S3_BUCKET = Config.dbt_docs_s3_bucket
 
 
 # We will define default arguments applied to every task in the DAG
@@ -104,13 +104,12 @@ with DAG(
         # Airflow uses double curly braces {{ ... }} for its own templates 
         env = {
             **environ,
-            'DB_ACCOUNT': '{{ var.value.DB_ACCOUNT }}',
-            'DATABASE': '{{ var.value.DATABASE }}',
-            'DB_ROLE': '{{ var.value.DB_ROLE }}',
-            'DB_USER_PASSWORD': '{{ var.value.DB_USER_PASSWORD }}',
-            'DB_USER': '{{ var.value.DB_USER }}',
-            'DB_WAREHOUSE': '{{ var.value.DB_WAREHOUSE }}'
-
+            'DB_ACCOUNT': Config.snowflake_account,
+            'DB_WAREHOUSE': Config.snowflake_warehouse,
+            'DATABASE': Config.snowflake_database,
+            'DB_USER': Config.airflow_data_platform_user,
+            'DB_USER_PASSWORD': Config.airflow_data_platform_user_password,
+            'DB_ROLE': Config.airflow_data_platform_role
         },
 
         bash_command = (
@@ -126,12 +125,12 @@ with DAG(
         # Airflow uses double curly braces {{ ... }} for its own templates 
         env = {
             **environ,
-            'DB_ACCOUNT': '{{ var.value.DB_ACCOUNT }}',
-            'DATABASE': '{{ var.value.DATABASE }}',
-            'DB_ROLE': '{{ var.value.DB_ROLE }}',
-            'DB_USER_PASSWORD': '{{ var.value.DB_USER_PASSWORD }}',
-            'DB_USER': '{{ var.value.DB_USER }}',
-            'DB_WAREHOUSE': '{{ var.value.DB_WAREHOUSE }}'
+            'DB_ACCOUNT': Config.snowflake_account,
+            'DB_WAREHOUSE': Config.snowflake_warehouse,
+            'DATABASE': Config.snowflake_database,
+            'DB_USER': Config.airflow_data_platform_user,
+            'DB_USER_PASSWORD': Config.airflow_data_platform_user_password,
+            'DB_ROLE': Config.airflow_data_platform_role
         },
 
         bash_command = (

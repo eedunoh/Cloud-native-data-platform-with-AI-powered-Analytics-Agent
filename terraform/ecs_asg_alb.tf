@@ -146,6 +146,9 @@ resource "aws_lb_target_group" "airflow_webserver_target_group" {
     healthy_threshold   = 2
     unhealthy_threshold = 3
   }
+
+  # This ensures alb doesn't take long to deregister targets.
+  deregistration_delay = 30
 }
 
 
@@ -166,6 +169,9 @@ resource "aws_lb_target_group" "kafka_ui_target_group" {
     healthy_threshold   = 2
     unhealthy_threshold = 3
   }
+
+  # This ensures alb doesn't take long to deregister targets.
+  deregistration_delay = 30
 }
 
 
@@ -338,7 +344,7 @@ locals {
   }
 
   # This stores the RDS connection string containing db_name, db_username, db_password and rds_endpoint
-  airflow_rds_connection = "postgresql+psycopg2://${var.airflow_db_username}:${var.airflow_db_password}@${aws_db_instance.airflow_postgres_instance.endpoint}/${var.airflow_db_name}"
+  airflow_rds_connection = "postgresql+psycopg2://${var.airflow_rds_username}:${var.airflow_rds_password}@${aws_db_instance.airflow_postgres_instance.endpoint}/${var.airflow_db_name}"
 
 }
 
@@ -385,7 +391,6 @@ resource "aws_ecs_task_definition" "airflow_scheduler_task" {
       essential        = true,
       logConfiguration = local.airflow_log_config,
       command          = ["airflow", "scheduler"],
-
       environment = [
         { name = "AIRFLOW__CORE__EXECUTOR", value = "LocalExecutor" },
         { name = "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", value = local.airflow_rds_connection },
@@ -746,4 +751,8 @@ resource "aws_ecs_service" "kafka_ui_service" {
 # Output
 output "ecs_cluster_name" {
   value = aws_ecs_cluster.data_platform_cluster.name
+}
+
+output "autoscaling_group_name" {
+  value = aws_autoscaling_group.data_platform_asg.name
 }

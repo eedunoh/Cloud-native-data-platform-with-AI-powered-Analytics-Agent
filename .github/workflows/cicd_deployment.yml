@@ -22,7 +22,6 @@ on:
 
 
 
-
 # Stage 2: Define the jobs
 jobs:
   deploy:
@@ -34,12 +33,14 @@ jobs:
       TERRAFORM_DIR: terraform
       TF_PLAN_FILE: tfplan.binary
       ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
-      TF_VAR_airflow_db_password: ${{ secrets.AIRFLOW_DB_PASSWORD }}
-      TF_VAR_snowflake_aws_regional_sqs_arn: ${{ secrets.SNOWFLAKE_AWS_REGIONAL_SQS_ARN }}
-      TF_VAR_snowflake_storage_aws_iam_user_arn: ${{ secrets.SNOWFLAKE_STORAGE_AWS_IAM_USER_ARN }}
-      TF_VAR_snowflake_storage_aws_external_id: ${{ secrets.SNOWFLAKE_STORAGE_AWS_EXTERNAL_ID }}
+      TF_VAR_airflow_data_platform_user_password: ${{ secrets.AIRFLOW_DATA_PLATFORM_USER_PASSWORD }}
+      TF_VAR_airflow_rds_password: ${{ secrets.AIRFLOW_RDS_PASSWORD }}
+      TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
       TF_VAR_snowflake_account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-
+      TF_VAR_snowflake_aws_regional_sqs_arn: ${{ secrets.SNOWFLAKE_AWS_REGIONAL_SQS_ARN }}
+      TF_VAR_snowflake_private_key: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+      TF_VAR_snowflake_storage_aws_external_id: ${{ secrets.SNOWFLAKE_STORAGE_AWS_EXTERNAL_ID }}
+      TF_VAR_snowflake_storage_aws_iam_user_arn: ${{ secrets.SNOWFLAKE_STORAGE_AWS_IAM_USER_ARN }}
 
     steps:
 
@@ -50,6 +51,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
   
+
 
       # Stage 5: Configure AWS
       - name: Configure AWS credentials
@@ -93,7 +95,8 @@ jobs:
 
       # Stage 9: Run Terraform Init
       # I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
-      # Manual trigger with destroy=true → Skips Terraform Init step
+      # Notice in this step, there is no "if" condition, That's because terraform needs to be initialized before we run terraform apply or destroy. 
+      # Without this, terraform won't initilize the remote backend where the terraform files are stored.
       - name: Run Terraform Init
         working-directory: ${{ env.TERRAFORM_DIR }}
         run: |
@@ -101,25 +104,7 @@ jobs:
 
 
 
-      # Stage 10: Import existing Snowflake secret into Terraform state (one-time recovery step)
-      # This handles cases where the secret exists in AWS Secrets Manager but is missing from Terraform remote state.
-      # If the secret is scheduled for deletion, it restores it before importing.
-      # The command uses "|| true" so the pipeline continues if the secret is already active or already tracked in state.
-      # Manual trigger with destroy=true → Skips Terraform Import Existing Secret step
-      - name: Terraform Import Existing Secret
-        working-directory: ${{ env.TERRAFORM_DIR }}
-        if: github.event.inputs.destroy != 'true'
-        run: |
-          aws secretsmanager restore-secret \
-            --secret-id snowflake_private_key || true     
-
-          terraform import \
-            aws_secretsmanager_secret.snowflake_private_key \
-            snowflake_private_key || true
-
-
-
-      # Stage 11: Run Terraform Plan 
+      # Stage 10: Run Terraform Plan 
       # I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
       # Manual trigger with destroy=true → Skips Terraform Plan step
       - name: Run Terraform Init Plan
@@ -131,9 +116,9 @@ jobs:
 
 
 
-      # Stage 12: Terraform Apply 
+      # Stage 11: Terraform Apply 
       # Manual trigger with destroy=true → Skips Terraform Apply step
-      # Note: I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
+      # I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
       - name: Terraform Apply
         working-directory: ${{ env.TERRAFORM_DIR }}
         if: github.event.inputs.destroy != 'true'
@@ -142,7 +127,7 @@ jobs:
 
 
 
-      # Stage 13: Push Docker Images
+      # Stage 12: Push Docker Images
       # Manual trigger with destroy=true → Skips the Docker Push stage
       - name: Push Docker Image to ECR
         if: github.event.inputs.destroy != 'true'
@@ -153,28 +138,27 @@ jobs:
         
 
 
-      # Stage 14: Get Terraform outputs. 
-      # This will be used in the next step to start airflow-init task. For context, airflow-init tasks is responsible for creating the admin/password needed to start airflow scheduler and webserver.
-      # The user will be stored in AWS RDS instance, which will also hold airflow metadata.
+      # Stage 13: Get Terraform outputs and Run airflow_init task. 
+      # This step combines two executions.
 
-      # Terraform looks in its state file and retrieves the value of these outputs defined in terraform files (ecs_cluster_name, private_subnet_ids_csv and ecs_tasks_sg_id).
+      # For context, airflow-init tasks is responsible for creating the admin/password needed to start airflow scheduler and webserver.
+      # The user will be stored in AWS RDS instance, and the RDS which will also hold airflow metadata.
+
+      # Terraform looks in its state file and retrieves the value of these outputs defined in terraform files (ecs_cluster_name, private_subnet_ids_csv, airflow_sg_id and asg_name).
       # Formats them individually as a GitHub Actions step output named cluster, subnets and sg.
-      # >> "$GITHUB_OUTPUT" Saves it on Github so later steps can access it.
+      # >> "$GITHUB_OUTPUT" Saves it on Github so it can be used.
 
-      # Manual trigger with destroy=true → Skips the Get Terraform outputs step
+      # Manual trigger with destroy=true → Skips Get_terraform_outputs and airflow_init_task steps.
       - name: Get Terraform outputs
-        if: github.event.inputs.destroy != 'true'
         id: tf_outputs
         working-directory: ${{ env.TERRAFORM_DIR }}
+        if: github.event.inputs.destroy != 'true'
         run: |
           echo "cluster=$(terraform output -raw ecs_cluster_name)" >> "$GITHUB_OUTPUT"
           echo "subnets=$(terraform output -raw private_subnet_ids_csv)" >> "$GITHUB_OUTPUT"
           echo "sg=$(terraform output -raw airflow_security_group_id)" >> "$GITHUB_OUTPUT"
 
 
-
-      # Stage 15: Run airflow_init task. Thus ia an ECS task responsible for creating the admin/password needed to start airflow scheduler and webserver.
-      # Manual trigger with destroy=true → Skips the Run Airflow_init task step
       - name: Run airflow_init task
         if: github.event.inputs.destroy != 'true'
         run: |
@@ -187,13 +171,49 @@ jobs:
 
 
 
-      # Stage 16: Destroy Infra
+      # Stage 14: Get ASG NameGet ASG Name and Scale In Auto Scaling Group capacity.
+      # This step also combines two executions.
+
+      # For context, I had an error during terraform destroy where AWS ECS could not delete most services while tasks are stuck in the DRAINING state. So terraform timed out waiting for these services to reach INACTIVE state.
+      # This step scales the Auto Scaling Group to zero capacity so the ECS container instances are terminated before infrastructure destruction.
+      # A 5-minute wait is used to allow the Auto Scaling Group sufficient time to terminate container instances before Terraform begins destroying the remaining infrastructure.
+      # I will also print the updated capacity of the ASG to be sure the scale in was successful.
+
+      # Manual trigger with destroy=true → Executes Get_ASG_Name and Scale_In_Auto_Scaling_Group.
+
+      - name: Get ASG Name
+        if: github.event.inputs.destroy == 'true'
+        id: tf_asg_output
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: |
+          echo "asg_name=$(terraform output -raw autoscaling_group_name)" >> "$GITHUB_OUTPUT"
+
+
+      - name: Scale In Auto Scaling Group
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        if: github.event.inputs.destroy == 'true'
+        run: |          
+          aws autoscaling update-auto-scaling-group \
+            --auto-scaling-group-name ${{ steps.tf_asg_output.outputs.asg_name }} \
+            --min-size 0 \
+            --desired-capacity 0 \
+            --max-size 0 \
+            --region eu-north-1
+
+          sleep 300
+
+          aws autoscaling describe-auto-scaling-groups \
+            --auto-scaling-group-names ${{ steps.tf_asg_output.outputs.asg_name }} \
+            --region eu-north-1
+
+
+
+      # Stage 15: Destroy Infra
       # It only runs the step if a workflow input variable named destroy equals "true". That input comes from workflow_dispatch, which lets you trigger workflows manually and pass parameters.
       # When you trigger this workflow manually in GitHub’s Actions tab, you’ll see a dropdown/input asking: Destroy infrastructure? 
-      # If you pick "true" → the step with if: github.event.inputs.destroy == 'true' runs.
-      # If "false" → that step is skipped.
+      # Manual trigger with destroy=true → Executes Terraform Destroy.
 
-      # Note: I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
+      # I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
       - name: Terraform Destroy
         working-directory: ${{ env.TERRAFORM_DIR }}
         if: github.event.inputs.destroy == 'true'
