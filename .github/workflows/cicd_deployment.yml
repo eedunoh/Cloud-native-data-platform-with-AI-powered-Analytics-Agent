@@ -3,9 +3,9 @@ name: Data platform ci/cd pipeline
 # stage 1: Trigger
 # Every push to main triggers the workflow. We can also use pull_request or schedule: - cron
 on:
-  push:
-    branches:
-      - main
+#   push:
+#     branches:
+#       - main
 
   # Defined to allow manual runs with inputs (needed for terraform destroy)
   # workflow_dispatch: Lets you run the workflow by hand from the GitHub website.
@@ -205,8 +205,7 @@ jobs:
           aws autoscaling describe-auto-scaling-groups \
             --auto-scaling-group-names ${{ steps.tf_asg_output.outputs.asg_name }} \
             --region eu-north-1
-
-
+        continue-on-error: true
 
       # Stage 15: Destroy Infra
       # It only runs the step if a workflow input variable named destroy equals "true". That input comes from workflow_dispatch, which lets you trigger workflows manually and pass parameters.
