@@ -107,7 +107,7 @@ jobs:
       # Stage 10: Run Terraform Plan 
       # I defined tf_vars to hold terraform secrets in the "env:" section at the top of this script. So on every terraform init, plan, apply or destroy, The secret values will be used.
       # Manual trigger with destroy=true → Skips Terraform Plan step
-      - name: Run Terraform Init Plan
+      - name: Run Terraform Plan
       
         if: github.event.inputs.destroy != 'true'
         working-directory: ${{ env.TERRAFORM_DIR }}

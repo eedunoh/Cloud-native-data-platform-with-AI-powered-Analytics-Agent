@@ -80,7 +80,7 @@ class Config:
                     "batch_bucket", 
                     "policy_document_bucket", 
                     "document_extract_bucket", 
-                    "dbt_doc_bucket",
+                    "dbt_docs_s3_bucket",
 
                     "snowflake_account",
                     "snowflake_warehouse",
