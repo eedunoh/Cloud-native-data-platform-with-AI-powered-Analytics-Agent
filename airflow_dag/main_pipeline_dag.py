@@ -22,6 +22,7 @@ sys.path.append('/opt')
 
 from ingestion.batch.batch_ingestor import run as run_batch
 from ingestion.documents.doc_extractor import run as run_doc_extractor
+from ingestion.ai_analytics_agent.ai_analytics_main_agent import run as run_ai_analytics_agent
 
 
 
@@ -73,33 +74,33 @@ with DAG(
 
     # Task: Call run() from the batch_ingestor.py script. PythonOperator executes a python function in an airflow Task
     batch_ingestion = PythonOperator(
-        task_id='Process_batch_data',
+        task_id='Process_Batch_Data',
         python_callable=run_batch
     )
 
 
-    # Task: Call run() from the doc_extractor.py script
+    # Task: Call run() from the doc_extractor.py script. PythonOperator executes a python function in an airflow Task
     document_extraction = PythonOperator(
-        task_id='Extract_documents_using_Claude_AI',
+        task_id='Extract_Documents_Using_Claude_AI',
         python_callable=run_doc_extractor
     )
 
     # Task: Wait for 1 minute
-    wait_buffer = BashOperator(
-        task_id='Wait_for_1_minute',
+    wait_buffer1 = BashOperator(
+        task_id='Wait_For_1_minute',
         bash_command='sleep 60'
     )
 
 
-# If you notice, the way I define the DBT_PASSWORD variable is different compared to how I defined ANTHROPIC_API_KEY variable in the document_extraction script.
+    # If you notice, the way I define the DBT_PASSWORD variable is different compared to how I defined ANTHROPIC_API_KEY variable in the document_extraction script.
+    # In document_extraction script, I used Variable.get("ANTHROPIC_API_KEY") in the script and then add the value in airflow variable UI. This worked because Airflow directly runs that Python code, so the Airflow Variable store is available.
 
-# In document_extraction script, I used Variable.get("ANTHROPIC_API_KEY") in the script and then add the value in airflow variable UI. This worked because Airflow directly runs that Python code, so the Airflow Variable store is available.
+    # For the profile.yml PASSWORD and ACCOUNT case, we set the variable in the yml file and then expose (define) it again in the DAG for airflow to see. ONLY then will Airflow Variable store be available.
+    # Airflow does not directly use the password and account. DBT uses the password and account. So variable definition here will be different compared to the case above.
 
-# For the profile.yml PASSWORD and ACCOUNT case, we set the variable in the yml file and then expose (define) it again in the DAG for airflow to see. ONLY then will Airflow Variable store be available.
-# Airflow does not directly use the password and account. DBT uses the password and account. So variable definition here will be different compared to the case above.
-
+    # Task: Install DBT packages and build & transform DBT models from Raw to Silver to Gold
     dbt_build = BashOperator(
-        task_id='Install_dbt_packages_and_run_dbt_build',
+        task_id='Install_DBT_Packages_and_Run_DBT_Build',
 
         # Airflow uses double curly braces {{ ... }} for its own templates 
         env = {
@@ -119,8 +120,9 @@ with DAG(
     )
 
 
+    # Task: Generate DBT Docs hosted in S3 as a static website
     dbt_docs_generate = BashOperator(
-        task_id='Generate_and_copy_dbt_docs_to_s3_bucket',
+        task_id='Generate_and_copy_DBT_Docs_to_S3_Bucket',
 
         # Airflow uses double curly braces {{ ... }} for its own templates 
         env = {
@@ -139,7 +141,21 @@ with DAG(
         )
     )
 
-    
+
+    # Task: Wait for 1 minute
+    wait_buffer2 = BashOperator(
+        task_id='Wait_For_1_Minute',
+        bash_command='sleep 60'
+    )
+
+
+    # Task: Call run() from the ai_analytics_main_agent.py script. PythonOperator executes a python function in an airflow Task
+    ai_Analytics_Main_Agent = PythonOperator(
+        task_id='Run_AI_Analytics_Main_Agent',
+        python_callable=run_ai_analytics_agent
+    )
+
+
     # Task: End with an Empty Operator. It also has no logic and does nothing but helps alot with regards to visual representation of the Airflow stages when viewd on the UI
     end = EmptyOperator(
         task_id = 'End'
@@ -148,7 +164,7 @@ with DAG(
 
     # Define task dependencies. This is what creates the DAG structure, It tells how the DAG should run
     # This means batch_ingestion and document_extraction are run simultaneously and must complete before dbt_build run.
-    start >> [batch_ingestion, document_extraction] >> wait_buffer >> dbt_build >> dbt_docs_generate >> end
+    start >> [batch_ingestion, document_extraction] >> wait_buffer1 >> dbt_build >> dbt_docs_generate >> wait_buffer2 >> ai_Analytics_Main_Agent >> end
 
 
 

@@ -1,9 +1,8 @@
-
 # Select the base image
 FROM python:3.9-slim
 
 # set the work directory in the container
-WORKDIR /stream_folder
+WORKDIR /ai_agent_folder
 
 
 # IMPORTANT NOTE:
@@ -13,16 +12,17 @@ WORKDIR /stream_folder
     # You cannot copy files that are outside the context. 
     # A COPY path starting with '..' in the dockerfile tries to go above the context root, which Docker explicitly forbids. The build will fail with an error like “Forbidden path outside the build context”.
 
-# Bake necessary directories (that contains the producer.py and config.py scripts) into the image.
-COPY ./ingestion/ ./ingestion/
+# Bake necessary directories (that contains the producer.py and config.py scripts) into the image and grant airflow the permission to own (read, write and execute) files in the directories.
+# airflow (UID 50000) and group to root (GID 0)
+COPY --chown=50000:0 ./ingestion/ ./ingestion/
 
 
-# Install necessary libraries needed for the producer.py script to run effectively
-# Confluent-kafka is a Python client library that will establish communication between our python script and Kafka broker
-# requests will enable sending requests/talk to the internet
-# boto3 is a python library that enables python communicate with AWS services
-RUN pip install --no-cache-dir confluent-kafka requests boto3
+# switch to airflow user
+USER airflow
+
+# Install other dependencies
+RUN pip install --user --no-cache-dir requests anthropic awscli ddgs snowflake-connector-python
 
 
 # Run the producer.py script
-CMD [ "python", "ingestion/streaming/producer.py" ]
+CMD [ "python", "ingestion/ai_analytics_agent/ai_analytics_main_agent.py" ]

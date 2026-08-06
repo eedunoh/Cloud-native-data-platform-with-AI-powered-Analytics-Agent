@@ -20,6 +20,9 @@ class Config:
     # Store the AI document extract Snowflake raw table name
     ai_extract_db_raw_table = "data_platform_db.raw.ai_document_extracts"
 
+    # Store AI ezecutive summaries
+    ai_summaries_db_gold_table = "data_platform_db.gold.ai_agent_summaries"
+
     # Store AWS region in a variable
     aws_region = "eu-north-1"
 
@@ -68,12 +71,22 @@ class Config:
         cls.snowflake_account = cls.get_ssm_parameter("snowflake_account")
         cls.snowflake_warehouse = cls.get_ssm_parameter("snowflake_warehouse")
         cls.snowflake_database = cls.get_ssm_parameter("snowflake_database")
+
         cls.airflow_data_platform_user = cls.get_ssm_parameter("airflow_data_platform_user")
         cls.airflow_data_platform_user_password = cls.get_ssm_parameter("airflow_data_platform_user_password")
         cls.airflow_data_platform_role = cls.get_ssm_parameter("airflow_data_platform_role")
 
+        cls.airflow_analytics_user = cls.get_ssm_parameter("airflow_analytics_user")
+        cls.airflow_analytics_user_password = cls.get_ssm_parameter("airflow_analytics_user_password")
+        cls.airflow_analytics_role = cls.get_ssm_parameter("airflow_analytics_role")
+
+        cls.snowflake_cortex_search_service = cls.get_ssm_parameter("snowflake_cortex_search_service")
+
         # Claude/Anthropic API key
         cls.anthropic_api_key = cls.get_ssm_parameter("anthropic_api_key")
+
+        # Slack Webhook
+        cls.ai_analytics_slack_webhook = cls.get_ssm_parameter("ai_analytics_slack_webhook")
 
         missing = [name for name in 
                    [
@@ -85,11 +98,20 @@ class Config:
                     "snowflake_account",
                     "snowflake_warehouse",
                     "snowflake_database",
+
                     "airflow_data_platform_user",
                     "airflow_data_platform_user_password",
                     "airflow_data_platform_role",
 
-                    "anthropic_api_key"
+                    "airflow_analytics_user",
+                    "airflow_analytics_user_password",
+                    "airflow_analytics_role",
+
+                    "snowflake_cortex_search_service",
+
+                    "anthropic_api_key",
+
+                    "ai_analytics_slack_webhook"
                     ]
                 if getattr(cls, name) is None]
         

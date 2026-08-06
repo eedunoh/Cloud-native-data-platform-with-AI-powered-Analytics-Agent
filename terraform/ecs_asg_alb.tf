@@ -333,6 +333,16 @@ locals {
     }
   }
 
+  # This stores AI Analytics cloudwatch log configurations
+  ai_analytics_log_config = {
+    logDriver = "awslogs",
+    options = {
+      awslogs-group         = "${aws_cloudwatch_log_group.ai_analytics_log_group.name}",
+      awslogs-region        = var.region,
+      awslogs-stream-prefix = "ai_analytics"
+    }
+  }
+
   # This stores Kafka utilities cloudwatch log configurations
   kafka_log_config = {
     logDriver = "awslogs",
@@ -431,6 +441,31 @@ resource "aws_ecs_task_definition" "airflow_webserver_task" {
         # I need to set this at 2 (adequate for my workload). If its more than that, I'll most likely have Out Of Memory (OOM) errors
         { name = "AIRFLOW__WEBSERVER__WORKERS", value = "2" },
 
+        # Explanations for these are outlined in the TROUBLESHOOTING section above
+        { name = "AIRFLOW__LOGGING__REMOTE_LOGGING", value = "True" },
+        { name = "AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER", value = "s3://${aws_s3_bucket.dbt_docs.bucket}/airflow-logs/" },
+        { name = "AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID", value = "aws_default" }
+      ]
+    }
+  ])
+}
+
+
+resource "aws_ecs_task_definition" "ai_analytics_task" {
+  family             = "ai_analytics"
+  task_role_arn      = aws_iam_role.airflow_task_role.arn
+  execution_role_arn = aws_iam_role.ecs_task_exec_role.arn
+  network_mode       = "awsvpc"
+  cpu                = "512"
+  memory             = "1024"
+  container_definitions = jsonencode([
+    {
+      name             = "ai_analytics_task",
+      image            = "${aws_ecr_repository.ai_analytics_repository.repository_url}:latest",
+      essential        = true,
+      logConfiguration = local.ai_analytics_log_config,
+
+      environment = [
         # Explanations for these are outlined in the TROUBLESHOOTING section above
         { name = "AIRFLOW__LOGGING__REMOTE_LOGGING", value = "True" },
         { name = "AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER", value = "s3://${aws_s3_bucket.dbt_docs.bucket}/airflow-logs/" },
@@ -584,6 +619,7 @@ resource "aws_ecs_service" "airflow_scheduler_service" {
   }
 }
 
+
 resource "aws_ecs_service" "airflow_webserver_service" {
   name            = "airflow_webserver_service"
   cluster         = aws_ecs_cluster.data_platform_cluster.id
@@ -601,6 +637,40 @@ resource "aws_ecs_service" "airflow_webserver_service" {
     target_group_arn = aws_lb_target_group.airflow_webserver_target_group.arn
     container_name   = "airflow_webserver_task"
     container_port   = 8080
+  }
+
+  # RULE 1: Balance tasks across different physical AZs first
+  ordered_placement_strategy {
+    type  = "spread"
+    field = "attribute:ecs.availability-zone"
+  }
+
+  # RULE 2: Inside those AZs, pack them tightly onto the fewest EC2 instances
+  ordered_placement_strategy {
+    type  = "binpack"
+    field = "memory"
+  }
+  # It is important to define a service-specific capacity provider strategy instead of relying solely on the cluster's default strategy. 
+  # Without it, the AWS API automatically applies the cluster's default settings, creating a mismatch with your terraform configuration file and that forces Terraform to destructively replace the service.  
+  capacity_provider_strategy {
+    capacity_provider = aws_ecs_capacity_provider.capacity_provider.name
+    base              = 1
+    weight            = 100
+  }
+}
+
+
+resource "aws_ecs_service" "ai_analytics_service" {
+  name            = "ai_analytics_service"
+  cluster         = aws_ecs_cluster.data_platform_cluster.id
+  task_definition = aws_ecs_task_definition.ai_analytics_task.arn
+  desired_count   = 1
+  force_delete    = true
+
+  network_configuration {
+    security_groups  = [aws_security_group.airflow_sg.id]
+    subnets          = aws_subnet.private[*].id
+    assign_public_ip = false
   }
 
   # RULE 1: Balance tasks across different physical AZs first

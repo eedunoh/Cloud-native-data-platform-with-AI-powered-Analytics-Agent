@@ -197,15 +197,29 @@ SHOW PIPES;
 -- TEST DATA INGESTION
 
 -- ** raw tables Test
+SELECT 
+DISTINCT (ingested_at::date),
+CURRENT_TIMESTAMP(),
+MIN(ingested_at)
+-- FROM data_platform_db.raw.data_dictionary
+-- FROM data_platform_db.raw.customers
+-- FROM data_platform_db.raw.stores
+-- FROM data_platform_db.raw.products
+-- FROM data_platform_db.raw.exchange_rates
+FROM data_platform_db.raw.ai_document_extracts
+-- FROM data_platform_db.raw.streamed_sales
+group by 1
+
+
+
 SELECT *
 -- FROM data_platform_db.raw.data_dictionary
 -- FROM data_platform_db.raw.customers
 -- FROM data_platform_db.raw.stores
 -- FROM data_platform_db.raw.products
 -- FROM data_platform_db.raw.exchange_rates
--- FROM data_platform_db.raw.ai_document_extracts
-FROM data_platform_db.raw.streamed_sales
-
+FROM data_platform_db.raw.ai_document_extracts
+-- FROM data_platform_db.raw.streamed_sales
 
 
 
@@ -215,7 +229,6 @@ FROM data_platform_db.raw.customers
 
 SELECT COUNT(*)
 FROM  @data_platform_db.raw.raw_stage_batch_customers
-
 
 
 
@@ -231,12 +244,16 @@ FROM data_platform_db.silver.streamed_sales
 
 
 
-
 -- ** Snapshot Test
 SELECT *
 -- from data_platform_db.silver.customers
-FROM data_platform_db.silver.core_customers
-WHERE user_id IN (1042, 325, 554)
+-- from data_platform_db.silver.stores
+
+-- FROM data_platform_db.silver.core_customers
+FROM data_platform_db.silver.core_stores
+
+-- WHERE user_id IN (1042, 325, 554)
+WHERE store_id = 16
 
 
 
@@ -244,7 +261,7 @@ WHERE user_id IN (1042, 325, 554)
 SELECT SYSTEM$PIPE_STATUS('RAW_CUSTOMERS_PIPE');
 
 
--- Show certain pipes/status on this snowflake account
+-- ** Show certain pipes/status on this snowflake account
 SHOW PIPES LIKE 'KAFKA_PIPE' IN ACCOUNT;
 
 SELECT SYSTEM$PIPE_STATUS('KAFKA_PIPE');
@@ -257,3 +274,6 @@ FROM TABLE(INFORMATION_SCHEMA.PIPE_USAGE_HISTORY(
 ));
 
 
+-- ** Check AI Summary
+SELECT *
+FROM data_platform_db.gold.ai_agent_summaries

@@ -308,6 +308,12 @@ variable "airflow_log_group_name" {
   type        = string
 }
 
+variable "ai_analytics_log_group_name" {
+  default     = "/ecs/ai_analytics"
+  description = "AI Analytics cloudwatch log group name"
+  type        = string
+}
+
 variable "kafka_utilities_log_group_name" {
   default     = "/ecs/kafka_utilities"
   description = "kafka utilities cloudwatch log group name"
@@ -388,6 +394,30 @@ variable "airflow_data_platform_role" {
   type        = string
 }
 
+variable "airflow_analytics_user" {
+  default     = "analytics_user"
+  description = "Snowflake AI/Analytics user with permission to carry out analysis on database"
+  type        = string
+}
+
+variable "airflow_analytics_user_password" {
+  type        = string
+  description = "Password of the airflow_analytics_user"
+  sensitive   = true
+}
+
+variable "airflow_analytics_role" {
+  default     = "analytics_role"
+  description = "Role of the airflow_analytics_user with associated permissions"
+  type        = string
+}
+
+variable "snowflake_cortex_search_service" {
+  default     = "policy_search"
+  description = "Snowflake cortex search service name"
+  type        = string
+}
+
 
 # Kafka Snowflake variables
 variable "kafka_streamer_user" {
@@ -415,5 +445,15 @@ variable "snowflake_streaming_pipe" {
 variable "anthropic_api_key" {
   type        = string
   description = "Anthropic/Claude-AI api key"
+  sensitive   = true
+}
+
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# AI-Analytics Slack Webhook
+variable "ai_analytics_slack_webhook" {
+  type        = string
+  description = "AI-Analytics Slack Webhook"
   sensitive   = true
 }

@@ -71,6 +71,30 @@ resource "aws_ssm_parameter" "airflow_data_platform_role" {
   value = var.airflow_data_platform_role
 }
 
+resource "aws_ssm_parameter" "airflow_analytics_user" {
+  name  = "airflow_analytics_user"
+  type  = "String"
+  value = var.airflow_analytics_user
+}
+
+resource "aws_ssm_parameter" "airflow_analytics_user_password" {
+  name  = "airflow_analytics_user_password"
+  type  = "String"
+  value = var.airflow_analytics_user_password
+}
+
+resource "aws_ssm_parameter" "airflow_analytics_role" {
+  name  = "airflow_analytics_role"
+  type  = "String"
+  value = var.airflow_analytics_role
+}
+
+resource "aws_ssm_parameter" "snowflake_cortex_search_service" {
+  name  = "snowflake_cortex_search_service"
+  type  = "String"
+  value = var.snowflake_cortex_search_service
+}
+
 
 # Snowflake Kafka Connection details
 resource "aws_ssm_parameter" "kafka_streamer_user" {
@@ -99,6 +123,16 @@ resource "aws_ssm_parameter" "anthropic_api_key" {
   name  = "anthropic_api_key"
   type  = "String"
   value = var.anthropic_api_key
+}
+
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# AI-Analytics Slack Webhook
+resource "aws_ssm_parameter" "ai_analytics_slack_webhook" {
+  name  = "ai_analytics_slack_webhook"
+  type  = "String"
+  value = var.ai_analytics_slack_webhook
 }
 
 

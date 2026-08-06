@@ -33,8 +33,10 @@ jobs:
       TERRAFORM_DIR: terraform
       TF_PLAN_FILE: tfplan.binary
       ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+      TF_VAR_airflow_analytics_user_password: ${{ secrets.AIRFLOW_ANALYTICS_USER_PASSWORD }}
       TF_VAR_airflow_data_platform_user_password: ${{ secrets.AIRFLOW_DATA_PLATFORM_USER_PASSWORD }}
       TF_VAR_airflow_rds_password: ${{ secrets.AIRFLOW_RDS_PASSWORD }}
+      TF_VAR_ai_analytics_slack_webhook: ${{ secrets.AI_ANALYTICS_SLACK_WEBHOOK }}
       TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
       TF_VAR_snowflake_account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
       TF_VAR_snowflake_aws_regional_sqs_arn: ${{ secrets.SNOWFLAKE_AWS_REGIONAL_SQS_ARN }}
@@ -77,6 +79,7 @@ jobs:
         if: github.event.inputs.destroy != 'true'
         run: |
           docker build -t $ECR_REGISTRY/airflow:latest -f ./ecs_docker_files/dockerfile.airflow .
+          docker build -t $ECR_REGISTRY/ai_analytics:latest -f ./ecs_docker_files/dockerfile.ai_analytics_agent .
           docker build -t $ECR_REGISTRY/kafka_consumer:latest -f ./ecs_docker_files/dockerfile.consumer .
           docker build -t $ECR_REGISTRY/kafka_producer:latest -f ./ecs_docker_files/dockerfile.producer .
 
@@ -133,6 +136,7 @@ jobs:
         if: github.event.inputs.destroy != 'true'
         run: |
           docker push $ECR_REGISTRY/airflow:latest
+          docker push $ECR_REGISTRY/ai_analytics:latest
           docker push $ECR_REGISTRY/kafka_consumer:latest
           docker push $ECR_REGISTRY/kafka_producer:latest
         
@@ -152,12 +156,10 @@ jobs:
       - name: Get Terraform outputs
         id: tf_outputs
         working-directory: ${{ env.TERRAFORM_DIR }}
-        if: github.event.inputs.destroy != 'true'
         run: |
           echo "cluster=$(terraform output -raw ecs_cluster_name)" >> "$GITHUB_OUTPUT"
           echo "subnets=$(terraform output -raw private_subnet_ids_csv)" >> "$GITHUB_OUTPUT"
           echo "sg=$(terraform output -raw airflow_security_group_id)" >> "$GITHUB_OUTPUT"
-
 
       - name: Run airflow_init task
         if: github.event.inputs.destroy != 'true'
@@ -170,7 +172,40 @@ jobs:
             --region eu-north-1
 
 
-      # Stage 14: Destroy Infra
+
+      # Stage 14: Force-delete all ECS services
+      # For context, I had an error during terraform destroy where AWS ECS could not delete most services while tasks are stuck in the DRAINING state. So terraform timed out waiting for these services to reach INACTIVE state.
+      # This step lists every service ARN live, pipes them to Force deletes ECS services even if tasks are still running. AWS performs the deletion asynchronously while Terraform continues afterwards.
+      # || means even if the code fail, the next step should continue/start
+      # Manual trigger with destroy=true → Executes Terraform Destroy.
+      # A 1-minute wait is used to allow services to be deleted properly
+      - name: Force-delete all ECS services (unsticking draining)
+        if: github.event.inputs.destroy == 'true'
+        run: |
+          SERVICES=$(aws ecs list-services \
+            --cluster ${{ steps.tf_outputs.outputs.cluster }} \
+            --region eu-north-1 \
+            --query "serviceArns[]" \
+            --output text)
+
+          if [ -n "$SERVICES" ]; then
+            for SERVICE in $SERVICES; do
+              echo "Deleting $SERVICE"
+              aws ecs delete-service \
+                --cluster ${{ steps.tf_outputs.outputs.cluster }} \
+                --service "$SERVICE" \
+                --force \
+                --region eu-north-1 || true
+            done
+          else
+            echo "No ECS services found."
+          fi 
+
+          sleep 60
+
+
+
+      # Stage 15: Destroy Infra
       # It only runs the step if a workflow input variable named destroy equals "true". That input comes from workflow_dispatch, which lets you trigger workflows manually and pass parameters.
       # When you trigger this workflow manually in GitHub’s Actions tab, you’ll see a dropdown/input asking: Destroy infrastructure? 
       # Manual trigger with destroy=true → Executes Terraform Destroy.

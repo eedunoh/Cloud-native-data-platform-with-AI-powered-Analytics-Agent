@@ -31,6 +31,15 @@ resource "aws_ecr_repository" "airflow_repository" {
   image_tag_mutability = "MUTABLE"
 }
 
+resource "aws_ecr_repository" "ai_analytics_repository" {
+  name = "ai_analytics"
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+  force_delete = true
+  image_tag_mutability = "MUTABLE"
+}
+
 resource "aws_ecr_repository" "kafka_producer_repository" {
   name = "kafka_producer"
   image_scanning_configuration {
@@ -57,6 +66,10 @@ resource "aws_ecr_repository" "kafka_consumer_repository" {
 
 output "airflow_repo_url" {
   value = aws_ecr_repository.airflow_repository.repository_url
+}
+
+output "ai_analytics_url" {
+  value = aws_ecr_repository.ai_analytics_repository.repository_url
 }
 
 output "kafka_producer_repo_url" {

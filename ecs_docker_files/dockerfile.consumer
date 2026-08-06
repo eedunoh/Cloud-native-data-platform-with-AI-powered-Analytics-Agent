@@ -13,9 +13,8 @@ WORKDIR /stream_folder
     # A COPY path starting with '..' in the dockerfile tries to go above the context root, which Docker explicitly forbids. The build will fail with an error like “Forbidden path outside the build context”.
 
 
-# Bake necessary directories (that contains the producer.py and config.py scripts) into the image and grant airflow the permission to own (read, write and execute) files in the directories.
-# airflow (UID 50000) and group to root (GID 0)
-COPY --chown=50000:0 ./ingestion/ ./ingestion/
+# Bake necessary directories (that contains the producer.py and config.py scripts) into the image
+COPY ./ingestion/ ./ingestion/
 
 
 # Install necessary libraries needed for the consumer.py script to run effectively
