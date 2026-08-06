@@ -18,7 +18,7 @@ COPY ./ingestion/ ./ingestion/
 
 
 # Install other dependencies
-RUN pip install --no-cache-dir requests anthropic awscli ddgs snowflake-connector-python
+RUN pip install --no-cache-dir requests anthropic awscli ddgs snowflake==1.8.0 snowflake-connector-python
 
 
 # Run the producer.py script
