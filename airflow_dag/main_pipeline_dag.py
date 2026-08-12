@@ -22,8 +22,6 @@ sys.path.append('/opt')
 
 from ingestion.batch.batch_ingestor import run as run_batch
 from ingestion.documents.doc_extractor import run as run_doc_extractor
-from ingestion.ai_analytics_agent.ai_analytics_main_agent import run as run_ai_analytics_agent
-
 
 
 # Import config. 
@@ -149,11 +147,29 @@ with DAG(
     )
 
 
+
     # Task: Call run() from the ai_analytics_main_agent.py script. PythonOperator executes a python function in an airflow Task
+
+    # Error: I encountered an error where importing the AI agent module at the top of the DAG caused a 30‑second timeout during DAG parsing, breaking the Airflow scheduler.
+    # Cause: Heavy imports (Snowflake, Anthropic, etc.) ran at parse time instead of task execution time.
+    # Solution: Wrap the import inside a lightweight callable used by PythonOperator, so heavy modules load only when the task runs.
+
+    # I didn't do this for batch and document extractor tasks because they import light weight modules
+
+    def run_agent_wrapper():
+        from ingestion.ai_analytics_agent.ai_analytics_main_agent import run as run_ai_analytics_agent
+
+        # Notice how the function is refrerened:
+        # Without a wrapper: python_callable=run_batch passes the function object to Airflow, which then calls it with () at execution time. That’s why you don’t write run_batch() in the PythonOperator definition.
+        # With a wrapper: python_callable=run_agent_wrapper passes the wrapper function; Airflow calls run_agent_wrapper(), and inside it the wrapper imports the heavy module and then calls run_ai_analytics_agent().
+        run_ai_analytics_agent() 
+
+
     ai_Analytics_Main_Agent = PythonOperator(
         task_id='Run_AI_Analytics_Main_Agent',
-        python_callable=run_ai_analytics_agent
+        python_callable=run_agent_wrapper
     )
+
 
 
     # Task: End with an Empty Operator. It also has no logic and does nothing but helps alot with regards to visual representation of the Airflow stages when viewd on the UI

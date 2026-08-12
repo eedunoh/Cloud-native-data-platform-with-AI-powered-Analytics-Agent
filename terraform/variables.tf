@@ -308,12 +308,6 @@ variable "airflow_log_group_name" {
   type        = string
 }
 
-variable "ai_analytics_log_group_name" {
-  default     = "/ecs/ai_analytics"
-  description = "AI Analytics cloudwatch log group name"
-  type        = string
-}
-
 variable "kafka_utilities_log_group_name" {
   default     = "/ecs/kafka_utilities"
   description = "kafka utilities cloudwatch log group name"

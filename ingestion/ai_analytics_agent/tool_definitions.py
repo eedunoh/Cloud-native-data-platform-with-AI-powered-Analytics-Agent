@@ -1,5 +1,21 @@
 
-from data_model import DATA_MODEL
+import os
+import sys
+
+
+# When running a script directly (e.g., python3 batch_ingestor.py), Python only looks for modules (e.g config) in the script's own folder.
+# This will fail because config is not in the same subfolder as the script.
+# To import from ingestion.config, the project root must be on sys.path, so Python can start the search from the project root.
+
+# os.path.abspath(__file__) gets the full path of this script.
+# Three os.path.dirname() calls navigate up three levels to the project root.
+# sys.path.append() adds that root folder to Python's module search path.
+# After this, Python can find ingestion.config regardless of which subfolder this script lives in.
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from ingestion.ai_analytics_agent.data_model import DATA_MODEL
+
 
 
 # The input_schema(s) in the tool_definitions are the required contract between the language model and my tools.

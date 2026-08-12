@@ -17,11 +17,6 @@ resource "aws_cloudwatch_log_group" "airflow_log_group" {
   retention_in_days = 7
 }
 
-resource "aws_cloudwatch_log_group" "ai_analytics_log_group" {
-  name              = var.ai_analytics_log_group_name
-  retention_in_days = 7
-}
-
 resource "aws_cloudwatch_log_group" "kafka_utilities_log_group" {
   name              = var.kafka_utilities_log_group_name
   retention_in_days = 7
@@ -40,10 +35,6 @@ resource "aws_cloudwatch_log_group" "mskafka_log_group" {
 
 output "airflow_log_group_name" {
   value = aws_cloudwatch_log_group.kafka_utilities_log_group.name
-}
-
-output "ai_analytics_log_group_name" {
-  value = aws_cloudwatch_log_group.ai_analytics_log_group.name
 }
 
 output "kafka_utilities_log_group_name" {
