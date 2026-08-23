@@ -435,10 +435,20 @@ variable "snowflake_streaming_pipe" {
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# Anthropic/Claude API key
-variable "anthropic_api_key" {
+# OpenRouter API key
+variable "open_router_api_key" {
   type        = string
-  description = "Anthropic/Claude-AI api key"
+  description = "OpenRouter api key"
+  sensitive   = true
+}
+
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Tavily API key
+variable "tavily_api_key" {
+  type        = string
+  description = "Tavily api key"
   sensitive   = true
 }
 

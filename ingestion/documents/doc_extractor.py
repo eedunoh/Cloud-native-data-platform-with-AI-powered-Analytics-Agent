@@ -1,15 +1,14 @@
 # import necessary libraries and modules
-from airflow.models import Variable
 import pandas as pd
-from datetime import datetime
-import anthropic
 import base64
 import json
 import os
 import boto3
 import logging
 import sys
-
+from airflow.models import Variable
+from datetime import datetime
+from openai import OpenAI
 
 
 
@@ -34,14 +33,19 @@ from ingestion.airflow_config import Config
 logger = logging.getLogger(__name__)
 
 
+# Import preferred model used
+from ingestion.ai_analytics_agent.data_model import PREFERRED_AI_MODEL
 
-# Define where to get anthropic API key
-API_KEY = Config.anthropic_api_key
 
+# Define where to get The OpenRouter API key
+API_KEY = Config.open_router_api_key
+BASE_URL = "https://openrouter.ai/api/v1"
 
-# Initialize claude client so we can use claude's ai for reasoning via the API
-client = anthropic.Anthropic(
-    api_key=API_KEY
+# Initialize The AI-Model client so we can use The AI-Model's ai for reasoning via the API
+# This documentation clearly explains this: https://openrouter.ai/blog/tutorials/any-coding-agent/
+client = OpenAI(
+    base_url   =   BASE_URL,
+    api_key    =   API_KEY
 )
 
 
@@ -60,41 +64,46 @@ def read_pdf(source_bucket: str, key: str) -> str:
     # fetch document from s3
     s3_object = s3_client.get_object(Bucket=source_bucket, Key=key)
 
+    # I used this example from open router: https://openrouter.ai/docs/guides/overview/multimodal/pdfs
     pdf_bytes = s3_object['Body'].read()
     
-    return base64.standard_b64encode(pdf_bytes).decode("utf-8")
+    pdf_b64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
+
+    # OpenRouter requests a url
+    return f"data:application/pdf;base64,{pdf_b64}" 
 
 
 # Next, define a function to extract the pdf
 def extract_policy(source_bucket: str, key: str) -> dict:
-    'Extract information from policy pdf using claude'
+    'Extract information from policy pdf using The AI-Model'
 
     print(f'Reading PDF: {key}')
 
     pdf_data = read_pdf(source_bucket, key)
 
-    print("Sending extracted data to claude for extraction...")
+    print("Sending extracted data to The AI-Model for extraction...")
 
     try:
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1000,  # increase to 2000-4000 in production for longer documents
+        response = client.chat.completions.create(
+            model=PREFERRED_AI_MODEL,
+            max_tokens=3600,
+            response_format={
+                "type": "json_object"
+            },
             messages=[
                 {
                     "role": "user",
                     "content": [
                         {
-                            "type": "document",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "application/pdf",
-                                "data": pdf_data
+                            "type": "file",
+                            "file": {
+                                "filename": "policy.pdf",
+                                "file_data": pdf_data
                             }
                         },
                         {
                             "type": "text",
-                            "text": """Extract the following from this internal policy document 
-                            and return ONLY a JSON object with no extra text. 
+                            "text": """Extract the following from this internal policy document and return ONLY a JSON object with no extra text. 
                             I need brief/concise summary in the key_rules and compliance_requirements section but capture all details:
                             {
                                 "policy_name": "name of the policy",
@@ -108,35 +117,41 @@ def extract_policy(source_bucket: str, key: str) -> dict:
                 }
             ]
         )
-        logger.info(f"Successfully connected to claude")
-        print("Successfully connected to Claude...")
+        logger.info(f"Successfully connected to The AI-Model")
+        print("Successfully connected to The AI-Model...")
 
     except Exception as e:
-        print(f"Claude API error: {e}")
+        print(f"The AI-Model API error: {e}")
         raise
 
 
-    # If connection to claude and extraction was successful, parse claude's response to make it presentatble
-    raw_text = response.content[0].text
+    # If connection to The AI-Model and extraction was successful, parse The AI-Model's response to make it presentatble
+    raw_text = response.choices[0].message.content
+
+    if not raw_text:
+        raise ValueError("Empty response from AI model")
+
+    # Strip markdown code fences. This Ensures we have actual JSON format.
+
+    # Finds the index number of the very first { character.
+    start = raw_text.find("{")
+
+    # Finds the index number of the very last } character.
+    end = raw_text.rfind("}")
+
+    # Keeps only the slice of text starting from the first { up to and including the final }.
+    if start != -1 and end != -1:
+        raw_text = raw_text[start:end + 1]
 
     try:
-        # Strip markdown code fences
-        if "```" in raw_text:
-            # Remove everything before the first {
-            raw_text = raw_text[raw_text.find('{'):]
-
-            # Remove everything after the last }
-            raw_text = raw_text[:raw_text.rfind('}')+1]
-
         extracted = json.loads(raw_text.strip())
         logger.info(f"Extracted json data ready for upload")
-
+        return extracted
+    
     except (json.JSONDecodeError, ValueError) as e:
         logger.exception(f"JSON parsing failed")
-        print(f"JSON parsing failed. These are the first few lines of Claude's raw response:\n{raw_text[:100]}...")
+        print(f"JSON parsing failed. These are the first few lines of The AI-Model's raw response:\n{raw_text[:100]}...")
         raise
-
-    return extracted
 
 
 
@@ -227,7 +242,7 @@ def run():
 
         print(f"Starting document extraction for: {key}")
 
-        # Extract PDF using Claude AI
+        # Extract PDF using The AI-Model AI
         extracted = extract_policy(source_bucket, key)
         
         # Save extracted JSON to S3
@@ -259,3 +274,89 @@ if __name__ == "__main__":
 # This is critical because when Airflow orchestrates this script, it will import the script as a module and later in the DAG Call specific functions as Tasks.
 # Without this guard [ __name__ = "__main__" ], if we only have run() command right after defining the run() function, importing the file in airflow DAG would immediately trigger the run() command at the 'import' stage
 # It will execute this whole ingestion script and won't even wait for the DAG to fully reach the Task stage where we intend to execute run() -  Thats not what we want.
+
+
+
+
+
+
+
+        # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # CHAT-GPT / OPEN-AI APIs
+
+        # 1. Responses API
+        #    client.responses.create()
+
+        #    Modern/general-purpose API.
+        #    Supports text, images, files, tools, structured outputs, etc.
+        #    → Recommended for new applications.
+
+
+        # 2. Chat Completions API
+        #    client.chat.completions.create()
+
+        #    Older/established chat API.
+        #    Uses messages + roles + tool_calls.
+        #    Still widely used and supported.
+        #    → Useful when you specifically need Chat Completions compatibility.
+
+
+        # 3. Embeddings API
+        #    client.embeddings.create()
+
+        #    Converts text into numerical vectors.
+        #    Used for semantic search, RAG, similarity matching, etc.
+        #    → Not a conversational/model-response API.
+
+
+        # 4. Images API
+        #    client.images.generate()
+
+        #    Generates images from prompts.
+        #    → Image generation/editing.
+
+
+        # 5. Audio / Speech APIs
+        #    Audio transcription → speech-to-text
+        #    Audio speech → text-to-speech
+        #    → Used for voice/audio applications.
+
+
+        # 6. Moderation API
+        #    client.moderations.create()
+
+        #    Checks content for potentially harmful categories.
+        #    → Safety/classification rather than conversation.
+
+
+
+        # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        # CLAUDE / ANTHROPIC APIs
+
+        # 1. Messages API
+        #    client.messages.create()
+
+        #    Main Claude API.
+        #    Handles conversations, text, images, PDFs/documents, and tool use.
+        #    → Main API for your agent.
+
+
+        # 2. Batch API
+        #    client.messages.batches.create()
+
+        #    Processes many Claude requests as a batch.
+        #    → Useful for large-volume/offline processing.
+
+
+        # 3. Token Counting API
+        #    client.messages.count_tokens()
+
+        #    Counts the tokens in a request before sending it.
+        #    → Useful for estimating token usage and cost.
+
+
+        # 4. Files API
+        #    client.beta.files...
+
+        #    Uploads and manages files for use with Claude.
+        #    → Useful when working repeatedly with documents/files.

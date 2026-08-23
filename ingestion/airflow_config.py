@@ -17,11 +17,17 @@ class Config:
     }
 
 
-    # Store the AI document extract Snowflake raw table name
+    # Store the AI document extract in the raw ai-extract table
     ai_extract_db_raw_table = "data_platform_db.raw.ai_document_extracts"
+
+
+    # AI-Analytics Agent will read policies from the silver ai-extract table
+    ai_extract_db_silver_table = "data_platform_db.silver.ai_document_extracts"
+
 
     # Store AI ezecutive summaries
     ai_summaries_db_gold_table = "data_platform_db.gold.ai_agent_summaries"
+
 
     # Store AWS region in a variable
     aws_region = "eu-north-1"
@@ -83,10 +89,13 @@ class Config:
         cls.snowflake_cortex_search_service = cls.get_ssm_parameter("snowflake_cortex_search_service")
 
         # Claude/Anthropic API key
-        cls.anthropic_api_key = cls.get_ssm_parameter("anthropic_api_key")
+        cls.open_router_api_key = cls.get_ssm_parameter("open_router_api_key")
 
         # Slack Webhook
         cls.ai_analytics_slack_webhook = cls.get_ssm_parameter("ai_analytics_slack_webhook")
+
+        # Tavily API key
+        cls.tavily_api_key = cls.get_ssm_parameter("tavily_api_key")
 
         missing = [name for name in 
                    [
@@ -109,9 +118,11 @@ class Config:
 
                     "snowflake_cortex_search_service",
 
-                    "anthropic_api_key",
+                    "open_router_api_key",
 
-                    "ai_analytics_slack_webhook"
+                    "ai_analytics_slack_webhook",
+
+                    "tavily_api_key"
                     ]
                 if getattr(cls, name) is None]
         

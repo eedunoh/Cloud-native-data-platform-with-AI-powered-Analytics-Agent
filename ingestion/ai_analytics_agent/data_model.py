@@ -1,4 +1,11 @@
 
+# PREFERRED_AI_MODEL = "openai/gpt-5.6-sol"
+
+PREFERRED_AI_MODEL = "anthropic/claude-opus-5"
+
+# PREFERRED_AI_MODEL = "deepseek/deepseek-v4-pro-0813"
+
+
 DATA_MODEL = """
 
 DATABASE: data_platform_db
@@ -250,7 +257,7 @@ Rules:
   - Snowflake SQL syntax only
   - store_id = 0 means online; store_id > 0 are physical stores.
   - delivery_date MUST be NULL for walk-in purchases (store_id > 0)
-  - Only read gold.ai_agent_summaries; do NOT insert or update it - the system saves the summary automatically
+  - Only read gold.ai_agent_summaries; do NOT insert or update it. The system saves the summary automatically
   - For internal analysis you may retrieve up to 5000 rows
   
   """

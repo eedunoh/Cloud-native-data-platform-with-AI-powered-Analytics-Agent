@@ -37,12 +37,13 @@ jobs:
       TF_VAR_airflow_data_platform_user_password: ${{ secrets.AIRFLOW_DATA_PLATFORM_USER_PASSWORD }}
       TF_VAR_airflow_rds_password: ${{ secrets.AIRFLOW_RDS_PASSWORD }}
       TF_VAR_ai_analytics_slack_webhook: ${{ secrets.AI_ANALYTICS_SLACK_WEBHOOK }}
-      TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      TF_VAR_open_router_api_key: ${{ secrets.OPEN_ROUTER_API_KEY }}
       TF_VAR_snowflake_account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
       TF_VAR_snowflake_aws_regional_sqs_arn: ${{ secrets.SNOWFLAKE_AWS_REGIONAL_SQS_ARN }}
       TF_VAR_snowflake_private_key: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
       TF_VAR_snowflake_storage_aws_external_id: ${{ secrets.SNOWFLAKE_STORAGE_AWS_EXTERNAL_ID }}
       TF_VAR_snowflake_storage_aws_iam_user_arn: ${{ secrets.SNOWFLAKE_STORAGE_AWS_IAM_USER_ARN }}
+      TF_VAR_tavily_api_key: ${{ secrets.TAVILY_API_KEY }}
 
     steps:
 
@@ -79,7 +80,6 @@ jobs:
         if: github.event.inputs.destroy != 'true'
         run: |
           docker build -t $ECR_REGISTRY/airflow:latest -f ./ecs_docker_files/dockerfile.airflow .
-          docker build -t $ECR_REGISTRY/ai_analytics:latest -f ./ecs_docker_files/dockerfile.ai_analytics_agent .
           docker build -t $ECR_REGISTRY/kafka_consumer:latest -f ./ecs_docker_files/dockerfile.consumer .
           docker build -t $ECR_REGISTRY/kafka_producer:latest -f ./ecs_docker_files/dockerfile.producer .
 
@@ -136,7 +136,6 @@ jobs:
         if: github.event.inputs.destroy != 'true'
         run: |
           docker push $ECR_REGISTRY/airflow:latest
-          docker push $ECR_REGISTRY/ai_analytics:latest
           docker push $ECR_REGISTRY/kafka_consumer:latest
           docker push $ECR_REGISTRY/kafka_producer:latest
         
@@ -160,6 +159,7 @@ jobs:
           echo "cluster=$(terraform output -raw ecs_cluster_name)" >> "$GITHUB_OUTPUT"
           echo "subnets=$(terraform output -raw private_subnet_ids_csv)" >> "$GITHUB_OUTPUT"
           echo "sg=$(terraform output -raw airflow_security_group_id)" >> "$GITHUB_OUTPUT"
+
 
       - name: Run airflow_init task
         if: github.event.inputs.destroy != 'true'

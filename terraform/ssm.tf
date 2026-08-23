@@ -118,11 +118,20 @@ resource "aws_ssm_parameter" "snowflake_streaming_pipe" {
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# Claude/Anthropic API key
-resource "aws_ssm_parameter" "anthropic_api_key" {
-  name  = "anthropic_api_key"
+# OpenRouter API key
+resource "aws_ssm_parameter" "open_router_api_key" {
+  name  = "open_router_api_key"
   type  = "String"
-  value = var.anthropic_api_key
+  value = var.open_router_api_key
+}
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# Tavily API key
+resource "aws_ssm_parameter" "tavily_api_key" {
+  name  = "tavily_api_key"
+  type  = "String"
+  value = var.tavily_api_key
 }
 
 

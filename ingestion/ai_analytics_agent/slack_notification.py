@@ -17,14 +17,13 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
-
-# Configure logging
-logger = logging.getLogger(__name__)
-
-
 # Import Config from the config.py. 
 # This is positioned here because I need to set the project root before importing config.py module
 from ingestion.airflow_config import Config
+
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 # I will now define a function to send executive summary in plain text format to slack
@@ -46,6 +45,7 @@ def send_to_slack(summary: str):
         # All systems are running normally. Last ingestion was 2 hours ago...
 
 
+    # Append Subsequent texts to existing ones
     message = f"*Data Platform — Executive Summary*\n"
     message += f"{datetime.utcnow().strftime('%Y-%m-%d %H:%M')}\n\n"
     message += summary

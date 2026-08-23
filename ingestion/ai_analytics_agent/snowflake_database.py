@@ -20,14 +20,17 @@ from snowflake.core import Root
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
+# Import Config from the config.py. 
+# This is positioned here because I need to set the project root before importing config.py module
+from ingestion.airflow_config import Config
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
-# Import Config from the config.py. 
-# This is positioned here because I need to set the project root before importing config.py module
-from ingestion.airflow_config import Config
+# Import preferred model used
+from ingestion.ai_analytics_agent.data_model import PREFERRED_AI_MODEL
 
 # I will define a function to store snowflake connection details
 def get_snowflake_connection():
@@ -42,8 +45,8 @@ def get_snowflake_connection():
 
 
 
-# I will define a function that allow claude to use the snowflake connections above to query the database.
-# Claude will use this function to explore data, detect anomalies compare metrics, check data quality and whatever it decides is relevant.
+# I will define a function that allow the AI-Model to use the snowflake connections above to query the database.
+# The AI-Model will use this function to explore data, detect anomalies compare metrics, check data quality and whatever it decides is relevant.
 def query_snowflake(sql: str):
     try:
         conn = get_snowflake_connection()
@@ -75,6 +78,7 @@ def query_snowflake(sql: str):
 
 
 
+
     # I will define a function to search internal policy documents. If you recall, the documents were extracted by the ai doc extractor and stored in AWS S3 which was then moved to a raw table on snowflake via standard snowpipe, then transformed into silver.ai_document_extracts by dbt.
 
     # There are two tiers:
@@ -82,7 +86,7 @@ def query_snowflake(sql: str):
     # TIER 1: Snowflake Cortex Search: a low-latency hybrid search and Retrieval-Augmented Generation (RAG) engine combining vector embeddings and keyword matching. Requires a paid Snowflake account with Cortex enabled. Returns only the most semantically relevant document sections for the query.
     # For this tier to work, you would have created a cortex search service on your snowflake account pointing to silver.ai_document_extracts.
 
-    # TIER 2: Full SQL retrieval fallback: If Snowflake Cortex Search fails for any reason (trial account, service unavailable, network issue), this tier kicks in silently. All policy documents are fetched and passed to Claude in full. Claude uses its own reasoning to extract relevant information. 
+    # TIER 2: Full SQL retrieval fallback: If Snowflake Cortex Search fails for any reason (trial account, service unavailable, network issue), this tier kicks in silently. All policy documents are fetched and passed to the AI-Model in full. The AI-Model uses its own reasoning to extract relevant information. 
     # No action needed. The fallback is completely transparent.
 
     # The caller never knows which tier ran. Result format is identical.
@@ -147,7 +151,6 @@ def search_policy_documents(query: str):
         # "metadata": { "total_processing_time_ms": 42, "num_documents_scanned": 150, "num_tokens_processed": 3200 }
         # }
 
-
         # I am only interested in the result
         hits = search_response.results
 
@@ -170,7 +173,7 @@ def search_policy_documents(query: str):
         # Tier 2: Full SQL retrieval (fall back option):
         # For context: If Cortex Search fails for any reason (trial account, service unavailable, network issue), this tier kicks in silently.
 
-        sql = """
+        sql = f"""
             SELECT
                 policy_name,
                 summary,
@@ -178,8 +181,9 @@ def search_policy_documents(query: str):
                 key_rules,
                 compliance_requirements,
                 ingested_at
-            FROM data_platform_db.silver.ai_document_extracts
+            FROM {Config.ai_extract_db_silver_table}
             ORDER BY ingested_at DESC
+            LIMIT 100
         """
 
         result = query_snowflake(sql)
@@ -198,6 +202,7 @@ def search_policy_documents(query: str):
 
 
 
+
 # I will define a function to save the executive summary to a dedicated snowflake gold schema table
 def save_summary_to_snowflake(summary: str):
     try:
@@ -211,7 +216,8 @@ def save_summary_to_snowflake(summary: str):
                 (%s, %s)
         """
 
-        cursor.execute(query, (summary, "claude-sonnet-4-6"))
+        # Note: I imported a variable that stores the preferred ai model name. I made it dynamic so that I dont need to manually edit this when ever I chnage the model.
+        cursor.execute(query, (summary, PREFERRED_AI_MODEL))
 
         conn.commit()
         cursor.close()
