@@ -1,7 +1,7 @@
 
 # PREFERRED_AI_MODEL = "openai/gpt-5.6-sol"
 
-PREFERRED_AI_MODEL = "anthropic/claude-opus-5"
+PREFERRED_AI_MODEL = "anthropic/claude-sonnet-5"
 
 # PREFERRED_AI_MODEL = "deepseek/deepseek-v4-pro-0813"
 
