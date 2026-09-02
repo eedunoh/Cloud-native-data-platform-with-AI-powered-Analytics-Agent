@@ -118,9 +118,7 @@ def run_agent():
     Your responsibility is not simply to answer questions, but to independently investigate the business, identify important findings, explain why they matter, validate them using multiple evidence sources whenever possible, and produce an executive-level report that management can immediately act on.
     You are an expert in analytics, you can spot errors in previous reports and correct/report them in current analysis. The Goal is to always have a better and more accurate executive summary than last analysis.
     More focus in the accuracy of analysis and numbers reported. Do not describe what you did. Only describe what you found. 
-    
-    You have maximum of 10 iterations. So ensure you complete your analysis on or before the 10th iteration.
-    
+        
     You have access to three tools:
     1. query_snowflake: 
         Write and execute any SQL required, Design your own queries, Perform joins, aggregations, comparisons, window functions, forecasting calculations, anomaly detection, and any other analysis needed. Never rely on predefined queries.
@@ -185,7 +183,7 @@ def run_agent():
     print("Agent is reasoning...")
 
     # This is a safety to avoid infinite loops. AI-Model stops when it cannot find an answer. This also helps to reduce abnormal triggers on the AI-Model vendor's end
-    max_iterations = 12
+    max_iterations = 18
 
     iteration = 0
 

@@ -20,9 +20,19 @@ RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 USER airflow
 
 # Install other dependencies
-RUN pip install --user --no-cache-dir requests "openai>=1.54.0" "aiohttp<3.10" boto3 dbt-core==1.11.11 dbt-snowflake==1.11.6 awscli snowflake==1.8.0 snowflake-connector-python
+RUN pip install --user --no-cache-dir --index-url https://pypi.org/simple requests "openai==1.68.0" boto3 dbt-core==1.11.11 dbt-snowflake==1.11.6 awscli snowflake==1.8.0 snowflake-connector-python \
+    && rm -rf /home/airflow/.local/lib/python3.10/site-packages/openai/_vendor
 
 # I encountered an issue where dbt expected snapshots to be defined in individual SQL files. This behavior differed from my development environment, where defining the snapshots in `snapshots.yml` was sufficient.
 # After investigating, I found that the dbt version installed in the Docker container was an older release (1.8.x). In that version, snapshots are defined using separate SQL files.
 # Newer dbt releases (1.9+ and later) support defining snapshots directly in `snapshots.yml`, eliminating the need for separate `.sql` snapshot files while still creating the snapshot tables correctly.
 # To ensure consistent behavior between my local development environment and the Docker container, I updated the Dockerfile to pin the dbt Core and dbt Snowflake adapter versions.
+
+
+# I encountered an issue where the airflow DAG failed because an unofficial version of the OpenAI package (v3.7.0) was installed. 
+# It had a broken internal module that expected an old aiohttp feature (SocketTimeoutError) that was no longer available, causing an import error. 
+# To fix it, we uninstalled that bad package, installed the official OpenAI SDK (v1.68.0), deleted the leftover broken files, and restarted Airflow. Now the DAG runs fine.
+
+# --index-url https://pypi.org/simple: tells pip to download packages from the official Python Package Index (PyPI) instead of any custom or private package index that might be configured in the environment.
+
+# rm -rf /home/airflow/.local/lib/python3.10/site-packages/openai/_vendor: deletes the leftover _vendor directory from the old, broken openai package.
