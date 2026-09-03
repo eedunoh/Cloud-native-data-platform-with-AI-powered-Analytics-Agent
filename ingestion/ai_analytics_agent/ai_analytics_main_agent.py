@@ -52,8 +52,8 @@ API_KEY = Config.open_router_api_key
 # Create OpenRouter connection using open router API
 
 # OpenRouter accepts an OpenAI-compatible Chat Completions format at its unified endpoint and translates your request behind the scenes to match the native API requirements of whatever provider or model you select (such as Anthropic, Google, or Meta)
-# Single Endpoint: You send requests to https://openrouter.ai/api/v1/chat/completions using standard OpenAI request and response schemas.Behind-the-Scenes 
-# Translation: OpenRouter normalizes the parameters and converts your payload into the provider's native format (like Anthropic's message API) before sending it onward.
+# Single Endpoint: You send requests to https://openrouter.ai/api/v1/chat/completions using standard OpenAI request.
+# Translation: Behind the scenes, OpenRouter normalizes the parameters and converts your payload into the provider's native format (like Anthropic's message API) before sending it onward.
 
 # This documentation clearly explains this: https://openrouter.ai/blog/tutorials/any-coding-agent/
 client = OpenAI(
