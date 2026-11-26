@@ -1,13 +1,13 @@
 # Cloud-Native ELT Data Platform with Autonomous AI Analytics Agent
 
-**By: Emediong Edunoh**
+<br>
 
 ## Project Publication
 
 Read the full technical publication covering the design, architecture, and deployment of this platform:
 [HERE](https://copper-apple-7ff.notion.site/Design-and-Deployment-of-a-Cloud-Native-ELT-Data-Platform-with-an-Autonomous-AI-Analytics-Agent-3c3f2b9efb1d809ea1effe13f4e0cf55?pvs=74)
 
-
+<br>
 
 ## Overview
 
@@ -23,7 +23,7 @@ A 12-hour cost experiment comparing self-managed and fully managed compute archi
 
 ## High-level Diagram
 
-<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/f1d88698-1199-4357-a3fd-640635b5fac0" />
+<img width="1536" height="1024" alt="Cloud-Native Data Platform with AI Analytics" src="https://github.com/user-attachments/assets/51940c8f-d02d-4503-8f03-1a67fa1bcd67" />
 
 <br>
 
