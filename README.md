@@ -5,7 +5,7 @@
 ## Project Publication
 
 Read the full technical publication covering the design, architecture, and deployment of this platform:
-[Design and Deployment of a Cloud-Native ELT Data Platform with an Autonomous AI Analytics Agent](https://copper-apple-7ff.notion.site/Design-and-Deployment-of-a-Cloud-Native-ELT-Data-Platform-with-an-Autonomous-AI-Analytics-Agent-3c3f2b9efb1d809ea1effe13f4e0cf55?pvs=74)
+[HERE](https://copper-apple-7ff.notion.site/Design-and-Deployment-of-a-Cloud-Native-ELT-Data-Platform-with-an-Autonomous-AI-Analytics-Agent-3c3f2b9efb1d809ea1effe13f4e0cf55?pvs=74)
 
 
 
@@ -19,18 +19,19 @@ The platform integrates data engineering, cloud infrastructure, workflow orchest
 
 A 12-hour cost experiment comparing self-managed and fully managed compute architectures demonstrated a **57.56% reduction in compute costs** with the self-managed approach.
 
+<br>
 
 ## High-level Diagram
 
 <img width="1536" height="1024" alt="Cloud-Native Data Platform Architecture" src="https://github.com/user-attachments/assets/532653e9-aa59-491e-9a19-240ccf8ac591" />
 
-
+<br>
 
 ## Technical & Detailed Architecture Diagram
 
 <img width="5261" height="3268" alt="DataPlatform-Diagram" src="https://github.com/user-attachments/assets/eb2a2215-8cf5-4c40-a1db-d37a4ea1942e" />
 
-
+<br>
 
 ## Technology Stack
 
