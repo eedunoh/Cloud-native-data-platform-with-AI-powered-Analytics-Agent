@@ -27,9 +27,12 @@ A 12-hour cost experiment comparing self-managed and fully managed compute archi
 
 <br>
 
+<br>
+
 ## Technical & Detailed Architecture Diagram
 
 <img width="5261" height="3268" alt="DataPlatform-Diagram" src="https://github.com/user-attachments/assets/eb2a2215-8cf5-4c40-a1db-d37a4ea1942e" />
+
 
 <br>
 
@@ -42,7 +45,7 @@ A 12-hour cost experiment comparing self-managed and fully managed compute archi
 - **Infrastructure & Deployment:** Terraform, Docker, GitHub Actions
 - **Communication:** Slack API and Webhook
 
-
+<br>
 
 ## System Integration & Orchestration
 
@@ -55,6 +58,7 @@ The platform integrates multiple services into a unified, automated data ecosyst
 - **Infrastructure Automation:** Terraform provisions infrastructure, while GitHub Actions automates CI/CD and deployment.
 - **Communication:** Slack delivers AI-generated insights, executive summaries, and operational notifications.
 
+<br>
 
 ## Multi-Source ELT Data Platform
 
@@ -64,6 +68,7 @@ The platform integrates three data ingestion workflows:
 - **Batch:** Google Sheets → Airflow → S3 → Snowpipe → Snowflake.
 - **Document Processing:** PDFs → Python/LLM Extraction → S3 → Snowpipe → Snowflake.
 
+<br>
 
 **Data Transformation & Governance:**
 
@@ -73,7 +78,7 @@ The platform integrates three data ingestion workflows:
 - SCD Type 2 snapshots and historical tracking.
 - Data lineage and automated documentation.
 
-
+<br>
 
 ## Autonomous AI Analytics Agent
 
@@ -82,7 +87,6 @@ A Python-based autonomous AI Analytics Agent powered by OpenRouter, supporting m
 Unlike a conventional chatbot, the agent autonomously determines what analysis is required, selects the appropriate tools, investigates findings, and generates actionable, data-backed recommendations.
 
 There is human in the loop to validate agent's outputs
-
 
 **Agent Tools:**
 
@@ -103,6 +107,7 @@ The agent operates through an iterative tool-calling workflow, with a maximum of
 6. Generates evidence-backed insights and business recommendations.
 7. Stores executive summaries in Snowflake and delivers findings to stakeholders through Slack.
 
+<br>
 
 ## Infrastructure & Deployment
 
