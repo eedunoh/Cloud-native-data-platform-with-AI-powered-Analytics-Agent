@@ -100,13 +100,13 @@ There is human in the loop to validate agent's outputs
 
 The agent operates through an iterative tool-calling workflow, with a maximum of 10 iterations per execution.
 
-1. Receives an analysis or monitoring task through Airflow.
-2. Evaluates the task and determines the information required.
-3. Autonomously selects and invokes the appropriate tools.
+1. Each Airflow run triggers data ingestion and transformation in the data warehouse. The AI Analytics Agent is triggered after successful dbt transformation.
+2. The AI Agent evaluates the available data and autonomously determines the analyses to perform and the information required.
+3. It autonomously selects and invokes the appropriate tools based on the analysis requirements.
 4. Queries Snowflake, searches external sources, and retrieves internal policies where necessary.
 5. Investigates findings, identifies anomalies, and compares results against historical summaries.
-6. Generates evidence-backed insights and business recommendations.
-7. Stores executive summaries in Snowflake and delivers findings to stakeholders through Slack.
+6. Generates evidence-backed insights and actionable business recommendations.
+7. Stores executive summaries in Snowflake and delivers business insights and executive summaries to stakeholders through Slack.
 
 <br>
 
