@@ -2,6 +2,13 @@
 
 **By: Emediong Edunoh**
 
+## Project Publication
+
+Read the full technical publication covering the design, architecture, and deployment of this platform:
+[Design and Deployment of a Cloud-Native ELT Data Platform with an Autonomous AI Analytics Agent](https://copper-apple-7ff.notion.site/Design-and-Deployment-of-a-Cloud-Native-ELT-Data-Platform-with-an-Autonomous-AI-Analytics-Agent-3c3f2b9efb1d809ea1effe13f4e0cf55?pvs=74)
+
+
+
 ## Overview
 
 A cloud-native ELT data platform integrated with a Python-based autonomous AI Analytics Agent.
@@ -13,19 +20,27 @@ The platform integrates data engineering, cloud infrastructure, workflow orchest
 A 12-hour cost experiment comparing self-managed and fully managed compute architectures demonstrated a **57.56% reduction in compute costs** with the self-managed approach.
 
 
-## Architecture
+## High-level Diagram
+
+<img width="1536" height="1024" alt="Cloud-Native Data Platform Architecture" src="https://github.com/user-attachments/assets/532653e9-aa59-491e-9a19-240ccf8ac591" />
+
+
+
+## Technical & Detailed Architecture Diagram
 
 <img width="5261" height="3268" alt="DataPlatform-Diagram" src="https://github.com/user-attachments/assets/eb2a2215-8cf5-4c40-a1db-d37a4ea1942e" />
+
 
 
 ## Technology Stack
 
 - **Cloud Infrastructure:** AWS (ECS, EC2, S3, ECR, RDS, MSK, IAM, CloudWatch)
 - **Data Engineering & Orchestration:** Apache Kafka, Apache Airflow, Snowflake, dbt
+- **AI & Integrations:** OpenRouter (Anthropic, OpenAI, DeepSeek LLMs), Tavily API
 - **Programming:** Python, SQL
 - **Infrastructure & Deployment:** Terraform, Docker, GitHub Actions
-- **AI & Integrations:** OpenRouter, Claude, GPT, DeepSeek, Tavily API
-- **Communication:** Slack
+- **Communication:** Slack API and Webhook
+
 
 
 ## System Integration & Orchestration
@@ -39,6 +54,7 @@ The platform integrates multiple services into a unified, automated data ecosyst
 - **Infrastructure Automation:** Terraform provisions infrastructure, while GitHub Actions automates CI/CD and deployment.
 - **Communication:** Slack delivers AI-generated insights, executive summaries, and operational notifications.
 
+
 ## Multi-Source ELT Data Platform
 
 The platform integrates three data ingestion workflows:
@@ -46,6 +62,7 @@ The platform integrates three data ingestion workflows:
 - **Streaming:** Kafka → AWS MSK → Snowpipe Streaming → Snowflake, with Parquet backups in S3.
 - **Batch:** Google Sheets → Airflow → S3 → Snowpipe → Snowflake.
 - **Document Processing:** PDFs → Python/LLM Extraction → S3 → Snowpipe → Snowflake.
+
 
 **Data Transformation & Governance:**
 
@@ -55,17 +72,23 @@ The platform integrates three data ingestion workflows:
 - SCD Type 2 snapshots and historical tracking.
 - Data lineage and automated documentation.
 
+
+
 ## Autonomous AI Analytics Agent
 
-A Python-based autonomous AI Analytics Agent powered by OpenRouter, supporting multiple LLM providers, including Claude, GPT, and DeepSeek.
+A Python-based autonomous AI Analytics Agent powered by OpenRouter, supporting multiple LLM providers, including Anthropic, OpenAI, and DeepSeek.
 
 Unlike a conventional chatbot, the agent autonomously determines what analysis is required, selects the appropriate tools, investigates findings, and generates actionable, data-backed recommendations.
+
+There is human in the loop to validate agent's outputs
+
 
 **Agent Tools:**
 
 1. **Query Snowflake:** Dynamically generates and executes SQL to investigate business performance, monitor data quality, identify anomalies, and perform historical comparisons.
 2. **Web Search:** Uses Tavily API to retrieve external information, industry trends, competitor intelligence, and macroeconomic developments.
 3. **Policy Search:** Uses Snowflake Cortex Search, with SQL fallback, to retrieve internal policies, SOPs, and operational guidelines.
+
 
 ### Autonomous Investigation Workflow
 
@@ -78,6 +101,7 @@ The agent operates through an iterative tool-calling workflow, with a maximum of
 5. Investigates findings, identifies anomalies, and compares results against historical summaries.
 6. Generates evidence-backed insights and business recommendations.
 7. Stores executive summaries in Snowflake and delivers findings to stakeholders through Slack.
+
 
 ## Infrastructure & Deployment
 
