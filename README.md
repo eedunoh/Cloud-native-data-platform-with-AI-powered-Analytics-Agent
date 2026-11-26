@@ -95,6 +95,7 @@ There is human in the loop to validate agent's outputs
 2. **Web Search:** Uses Tavily API to retrieve external information, industry trends, competitor intelligence, and macroeconomic developments.
 3. **Policy Search:** Uses Snowflake Cortex Search, with SQL fallback, to retrieve internal policies, SOPs, and operational guidelines.
 
+<br>
 
 ### Autonomous Investigation Workflow
 
