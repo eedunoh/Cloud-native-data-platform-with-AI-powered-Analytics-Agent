@@ -23,15 +23,16 @@ A 12-hour cost experiment comparing self-managed and fully managed compute archi
 
 ## High-level Diagram
 
-<img width="1536" height="1024" alt="Cloud-Native Data Platform Architecture" src="https://github.com/user-attachments/assets/532653e9-aa59-491e-9a19-240ccf8ac591" />
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/f1d88698-1199-4357-a3fd-640635b5fac0" />
 
 <br>
+
 
 <br>
 
 ## Technical & Detailed Architecture Diagram
 
-<img width="5261" height="3268" alt="DataPlatform-Diagram" src="https://github.com/user-attachments/assets/eb2a2215-8cf5-4c40-a1db-d37a4ea1942e" />
+<img width="4681" height="2870" alt="DataPlatform_Diagram" src="https://github.com/user-attachments/assets/890ea9dc-11ca-49ca-8086-23c25f1565ff" />
 
 
 <br>
