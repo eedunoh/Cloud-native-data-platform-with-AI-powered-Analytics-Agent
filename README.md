@@ -2,6 +2,24 @@
 
 <br>
 
+## High-level Diagram
+
+<img width="1536" height="1024" alt="Cloud-Native Data Platform with AI Analytics" src="https://github.com/user-attachments/assets/51940c8f-d02d-4503-8f03-1a67fa1bcd67" />
+
+<br>
+
+
+<br>
+
+## Technical & Detailed Architecture Diagram
+
+<img width="4681" height="2870" alt="DataPlatform_Diagram" src="https://github.com/user-attachments/assets/890ea9dc-11ca-49ca-8086-23c25f1565ff" />
+
+
+<br>
+
+<br>
+
 ## Project Publication
 
 Read the full technical publication covering the design, architecture, and deployment of this platform:
@@ -18,22 +36,6 @@ The goal of this work is to significantly reduce the time between data ingestion
 The platform integrates data engineering, cloud infrastructure, workflow orchestration, and AI agent development into a unified ecosystem. 
 
 A 12-hour cost experiment comparing self-managed and fully managed compute architectures demonstrated a **57.56% reduction in compute costs** with the self-managed approach.
-
-<br>
-
-## High-level Diagram
-
-<img width="1536" height="1024" alt="Cloud-Native Data Platform with AI Analytics" src="https://github.com/user-attachments/assets/51940c8f-d02d-4503-8f03-1a67fa1bcd67" />
-
-<br>
-
-
-<br>
-
-## Technical & Detailed Architecture Diagram
-
-<img width="4681" height="2870" alt="DataPlatform_Diagram" src="https://github.com/user-attachments/assets/890ea9dc-11ca-49ca-8086-23c25f1565ff" />
-
 
 <br>
 
